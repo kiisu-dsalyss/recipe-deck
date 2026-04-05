@@ -19,7 +19,9 @@ export function SwappedRequestsStat(props: LiveStatProps): ReactElement {
       meterFraction={frac}
       value={fmtInt(n)}
       peakTitle="Highest swapped count this session (HEALTHY)"
-      peak={<>Peak {fmtInt(peak)}</>}
+      peak={
+        peak > 0 ? <>Peak {fmtInt(peak)}</> : undefined
+      }
     />
   );
 }

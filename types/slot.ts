@@ -24,7 +24,8 @@ export interface VllmLiveStats {
   /** CPU KV-cache usage fraction 0–1 when exported (older vLLM; often absent on V1). */
   cpuCacheUsageFrac: number | null;
   /**
-   * Prefix-cache hit rate 0–1 from gauges, or hits/queries from V1 counters; best-effort by version.
+   * Prefix hit rate 0–1 from GPU-named / generic gauges or V1 counters — not `cpu_prefix_cache_hit_rate`
+   * (that gauge is {@link cpuPrefixCacheHitRateFrac} only).
    */
   gpuPrefixCacheHitRateFrac: number | null;
   /** `cpu_prefix_cache_hit_rate` gauge when present (else use {@link gpuPrefixCacheHitRateFrac}). */

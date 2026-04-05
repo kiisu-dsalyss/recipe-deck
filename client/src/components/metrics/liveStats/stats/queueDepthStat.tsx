@@ -21,7 +21,9 @@ export function QueueDepthStat(props: LiveStatProps): ReactElement {
       meterFraction={waitFrac}
       value={fmtInt(waitN)}
       peakTitle="Highest waiting request count this session (HEALTHY)"
-      peak={<>Peak {fmtInt(waitPeak)}</>}
+      peak={
+        waitPeak > 0 ? <>Peak {fmtInt(waitPeak)}</> : undefined
+      }
     />
   );
 }

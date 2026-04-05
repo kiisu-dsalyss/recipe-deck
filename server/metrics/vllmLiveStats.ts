@@ -105,11 +105,11 @@ export function parseVllmLiveStatsFromPrometheus(text: string): VllmLiveStats {
   const promptTot = pickMetric(text, "prompt_tokens_total");
   const genTot = pickMetric(text, "generation_tokens_total");
 
+  // CPU-only gauge is read only into cpuPrefixCacheHitRateFrac (not duplicated here).
   const prefixHit =
     prefixHitRateFromV1Counters(text) ??
     pickMetricAny(text, [
       "gpu_prefix_cache_hit_rate",
-      "cpu_prefix_cache_hit_rate",
       "prefix_cache_hit_rate",
       "vllm_gpu_prefix_cache_hit_rate",
     ]);
