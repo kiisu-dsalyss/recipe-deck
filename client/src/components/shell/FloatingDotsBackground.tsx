@@ -12,6 +12,13 @@ const TOK_REF = 140;
 const SPEED_MUL_MAX = 3.6;
 /** Smooth tok→speed so polling jumps do not twitch the field. */
 const SPEED_SMOOTH = 0.14;
+/**
+ * Tok/s above which the log-curve “excess” is damped so high throughput does not over-accelerate dots.
+ * Below this, behavior matches the historical curve (idle speed unchanged).
+ */
+const TOK_COMPRESS_ABOVE = 22;
+/** Multiply only the portion of u above u(TOK_COMPRESS_ABOVE) by this (lower = calmer at high tok/s). */
+const HIGH_ACTIVITY_U_DAMP = 0.5;
 
 /** Map tok/s to drift speed multiplier (higher load → faster motion). */
 function activitySpeedMultiplier(tok: number | null | undefined): number {
@@ -19,8 +26,18 @@ function activitySpeedMultiplier(tok: number | null | undefined): number {
     return SPEED_MUL_MIN;
   }
   const t = Math.min(tok, 400);
-  const u = Math.log1p(t) / Math.log1p(TOK_REF);
-  return SPEED_MUL_MIN + Math.min(1, u) * (SPEED_MUL_MAX - SPEED_MUL_MIN);
+  const uRaw = Math.min(1, Math.log1p(t) / Math.log1p(TOK_REF));
+  let u = uRaw;
+  if (t > TOK_COMPRESS_ABOVE) {
+    const uFloor = Math.min(
+      1,
+      Math.log1p(TOK_COMPRESS_ABOVE) / Math.log1p(TOK_REF),
+    );
+    if (uRaw > uFloor) {
+      u = uFloor + (uRaw - uFloor) * HIGH_ACTIVITY_U_DAMP;
+    }
+  }
+  return SPEED_MUL_MIN + u * (SPEED_MUL_MAX - SPEED_MUL_MIN);
 }
 /** Bump connector line perceived brightness vs dots (stroke alpha + HSL L). */
 const LINE_BRIGHTER = 1.14;

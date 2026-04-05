@@ -27,8 +27,14 @@ export interface VllmLiveStats {
    * Prefix-cache hit rate 0–1 from gauges, or hits/queries from V1 counters; best-effort by version.
    */
   gpuPrefixCacheHitRateFrac: number | null;
+  /** `cpu_prefix_cache_hit_rate` gauge when present (else use {@link gpuPrefixCacheHitRateFrac}). */
+  cpuPrefixCacheHitRateFrac: number | null;
+  /** P95 time to first token (seconds) from summary or histogram; null if not exported. */
+  timeToFirstTokenP95Seconds: number | null;
   numRequestsRunning: number | null;
   numRequestsWaiting: number | null;
+  /** `num_requests_swapped` gauge when present. */
+  numRequestsSwapped: number | null;
   promptTokensTotal: number | null;
   generationTokensTotal: number | null;
 }

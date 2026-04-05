@@ -1,6 +1,6 @@
 {
   "name": "recipe-deck",
-  "version": "0.2.37",
+  "version": "0.2.38",
   "private": true,
   "license": "MIT",
   "description": "Operator UI for NVIDIA DGX Spark (GB10/GX10 family); requires eugr/spark-vllm-docker on-host (https://github.com/eugr/spark-vllm-docker).",
