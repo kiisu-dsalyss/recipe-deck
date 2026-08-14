@@ -24,6 +24,9 @@ export interface AppSettingsPanelProps {
   onSaveHf: () => void | Promise<void>;
   hfTokenLoading: boolean;
   onRefreshRecipes: () => void | Promise<void>;
+  /** Current auto-start state from server. */
+  autoStartState: { recipeStem: string | null; autoStart: boolean } | null;
+  onAutoStartChange: (stem: string, enabled: boolean) => Promise<void>;
 }
 
 function toSaveBody(d: AppSettingsEffective): AppSettingsSaveBody {
@@ -54,6 +57,8 @@ export function AppSettingsPanel(props: AppSettingsPanelProps): ReactElement {
     onSaveHf,
     hfTokenLoading,
     onRefreshRecipes,
+    autoStartState,
+    onAutoStartChange,
   } = props;
   const [draft, setDraft] = useState<AppSettingsEffective | null>(null);
   const [saving, setSaving] = useState(false);
@@ -370,6 +375,34 @@ export function AppSettingsPanel(props: AppSettingsPanelProps): ReactElement {
         <p className={styles.p}>
           Disables animated background dots and the header aurora. Applies after you save (no restart).
         </p>
+      </fieldset>
+
+      <fieldset className={styles.fieldset}>
+        <legend className={styles.legend}>Auto-start</legend>
+        <p className={styles.p}>
+          When enabled, this recipe will automatically start the next time Recipe Deck boots.
+          State is stored in <code className={styles.code}>.current-recipe</code> at the app root.
+        </p>
+        {autoStartState?.recipeStem ? (
+          <label className={styles.rowCheck}>
+            <input
+              type="checkbox"
+              checked={autoStartState.autoStart}
+              onChange={(e) => {
+                if (autoStartState.recipeStem) {
+                  void onAutoStartChange(autoStartState.recipeStem!, e.target.checked);
+                }
+              }}
+            />
+            <span className={styles.checkLabel}>
+              Auto-start {autoStartState.recipeStem} at boot
+            </span>
+          </label>
+        ) : (
+          <p className={styles.p} style={{ fontStyle: "italic", color: "var(--color-muted)" }}>
+            No recipe configured for auto-start. Run a recipe from the editor with "Auto start at boot" enabled to configure this.
+          </p>
+        )}
       </fieldset>
 
       <div className={styles.actions}>

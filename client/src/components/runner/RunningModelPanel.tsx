@@ -22,6 +22,10 @@ export interface RunningModelPanelProps {
   onRun: () => void;
   onStop: () => void;
   onForce: () => void;
+  /** Toggled by clicking the checkbox in the running panel. */
+  onToggleAutoStart?: () => void;
+  /** Reflects current auto-start checkbox state. */
+  autoStartEnabled?: boolean;
   /** `docker ps` rows for operator stop (zombie containers). */
   onDockerList: () => Promise<DockerListRow[]>;
   onDockerStop: (containerId: string) => Promise<void>;
@@ -115,6 +119,8 @@ export function RunningModelPanel(props: RunningModelPanelProps): ReactElement {
     onRun,
     onStop,
     onForce,
+    onToggleAutoStart,
+    autoStartEnabled,
     onDockerList,
     onDockerStop,
     modelCacheProgress,
@@ -402,6 +408,24 @@ export function RunningModelPanel(props: RunningModelPanelProps): ReactElement {
             >
               <IconForceKill />
             </ToolbarIconButton>
+          </div>
+          {/* Auto-start checkbox */}
+          <div className={styles.autoStartRow}>
+            <label className={styles.autoStartLabel}>
+              <input
+                type="checkbox"
+                checked={autoStartEnabled ?? true}
+                onChange={() => {
+                  onToggleAutoStart?.();
+                }}
+                title={
+                  autoStartEnabled
+                    ? "This recipe will auto-start the next time Recipe Deck boots"
+                    : "Auto-start is disabled; this recipe will not start on boot"
+                }
+              />
+              <span className={styles.autoStartText}>Auto start at boot</span>
+            </label>
           </div>
         </div>
         <div className={styles.headMeta}>

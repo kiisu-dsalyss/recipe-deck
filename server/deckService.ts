@@ -28,6 +28,7 @@ import {
 } from "../types/index.js";
 import { readHfTokenFromFile } from "./envMerge.js";
 import { computeModelCacheProgress } from "./modelCacheProgress.js";
+import { readCurrentRecipeState } from "./currentRecipe.js";
 
 /** Single object for GET /api/state and WebSocket `state` messages (keep in sync). */
 export interface DeckFullStatePayload {
@@ -94,6 +95,10 @@ export class DeckService {
     }
     this.recipeRunCounts = await loadUsageStatsFile(this.usageStatsPath);
     await this.refreshRecipes();
+
+    // Try to auto-start the last configured recipe
+    await this.tryAutoStart();
+
     const watcher = chokidar.watch(this.paths.recipesDir, {
       ignoreInitial: true,
       awaitWriteFinish: { stabilityThreshold: 400, pollInterval: 200 },
@@ -343,6 +348,61 @@ export class DeckService {
   async refreshLiveDiscovery(): Promise<void> {
     await this.probeLiveEndpoints();
     this.broadcastState();
+  }
+
+  /**
+   * Try to auto-start the last configured recipe on server startup.
+   * Only runs if auto-start is enabled and the recipe file still exists.
+   */
+  private async tryAutoStart(): Promise<void> {
+    const state = await readCurrentRecipeState();
+    if (!state || !state.autoStart || !state.recipeStem) {
+      return;
+    }
+
+    // Check the recipe file exists before attempting to run
+    const recipeAbs =
+      resolveRecipeDiskPath(this.paths.recipesDir, state.recipeStem);
+    if (!recipeAbs) {
+      console.error(
+        `[recipe-deck] auto-start recipe not found on disk: ${state.recipeStem}`,
+      );
+      return;
+    }
+
+    console.info(
+      `[recipe-deck] auto-starting recipe: ${state.recipeStem}`,
+    );
+    try {
+      await this.runner.run({
+        recipeStem: state.recipeStem,
+        recipeAbsPath: recipeAbs,
+        solo: true,
+        recipeOverrides: undefined,
+      });
+      console.info(
+        `[recipe-deck] auto-start completed for: ${state.recipeStem}`,
+      );
+    } catch (e) {
+      console.error(
+        `[recipe-deck] auto-start failed for ${state.recipeStem}: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+  }
+
+  /** Save the current recipe state (called after a successful run). */
+  async saveCurrentRecipeState(
+    recipeStem: string,
+    autoStart: boolean,
+  ): Promise<void> {
+    const { writeCurrentRecipeState } = await import("./currentRecipe.js");
+    await writeCurrentRecipeState(recipeStem, autoStart);
+  }
+
+  /** Clear the current recipe state (called on stop/kill). */
+  async clearCurrentRecipeState(): Promise<void> {
+    const { clearCurrentRecipeState: fn } = await import("./currentRecipe.js");
+    await fn();
   }
 
   shutdown(): void {

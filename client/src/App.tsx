@@ -145,6 +145,8 @@ export function App(): ReactElement {
   const [deleteConfirmStem, setDeleteConfirmStem] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [serverSettingsOpen, setServerSettingsOpen] = useState(false);
+  /** Auto-start checkbox state in the editor (checked by default for disk runs). */
+  const [autoStartEnabled, setAutoStartEnabled] = useState(true);
 
   const handleRunDisk = useCallback(async () => {
     if (!stem) return;
@@ -155,12 +157,13 @@ export function App(): ReactElement {
         recipeStem: stem,
         solo: true,
         useBuffer: false,
+        autoStart: autoStartEnabled,
       });
     } catch (e) {
       const err = e as Error & { code?: string };
       window.alert(err.message ?? String(e));
     }
-  }, [deck, stem]);
+  }, [deck, stem, autoStartEnabled]);
 
   const handleRunBuffer = useCallback(async () => {
     if (!stem.trim()) return;
@@ -368,6 +371,10 @@ export function App(): ReactElement {
               onRun={() => {
                 void handleRunDisk();
               }}
+              onToggleAutoStart={() => {
+                setAutoStartEnabled((v) => !v);
+                void deck.toggleAutoStart(!autoStartEnabled);
+              }}
               onStop={() => {
                 void deck.stop();
               }}
@@ -377,6 +384,7 @@ export function App(): ReactElement {
               onDockerList={handleDockerList}
               onDockerStop={handleDockerStop}
               modelCacheProgress={p?.modelCacheProgress ?? null}
+              autoStartEnabled={autoStartEnabled}
             />
           </div>
           <div className={styles.editorColumn}>
@@ -505,6 +513,8 @@ export function App(): ReactElement {
           onSaveHf={() => void submitHf()}
           hfTokenLoading={deck.hfToken === undefined}
           onRefreshRecipes={() => void deck.refresh()}
+          autoStartState={deck.autoStart}
+          onAutoStartChange={deck.saveAutoStart}
         />
       ) : null}
 

@@ -51,11 +51,13 @@ export interface DeckUiState {
   appSettings: AppSettingsPayload | null;
   /** True = hide dots + header aurora (from server + localStorage fallback). */
   simpleUi: boolean;
+  /** Auto-start state: recipe stem and enabled flag. `null` until first fetch. */
+  autoStart: { recipeStem: string | null; autoStart: boolean } | null;
 }
 
 export function useRecipeDeck(): DeckUiState & {
   refresh: () => Promise<void>;
-  run: (args: Parameters<typeof api.postRun>[0]) => Promise<void>;
+  run: (args: Parameters<typeof api.postRun>[0] & { autoStart?: boolean }) => Promise<void>;
   stop: () => Promise<void>;
   forceKill: () => Promise<void>;
   saveRecipe: (stem: string, content: string) => Promise<void>;
@@ -63,6 +65,8 @@ export function useRecipeDeck(): DeckUiState & {
   deleteRecipe: (stem: string) => Promise<void>;
   saveHf: (token: string) => Promise<void>;
   saveAppSettings: (body: AppSettingsSaveBody) => Promise<void>;
+  saveAutoStart: (stem: string, enabled: boolean) => Promise<void>;
+  toggleAutoStart: (enabled: boolean) => Promise<void>;
   clearRunLog: () => void;
 } {
   const [payload, setPayload] = useState<FullStatePayload | null>(null);
@@ -70,6 +74,10 @@ export function useRecipeDeck(): DeckUiState & {
   const [error, setError] = useState<string | null>(null);
   const [hfToken, setHfToken] = useState<string | undefined>(undefined);
   const [appSettings, setAppSettings] = useState<AppSettingsPayload | null>(null);
+  const [autoStart, setAutoStart] = useState<{
+    recipeStem: string | null;
+    autoStart: boolean;
+  } | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   /** When true, the next socket `close` is intentional (e.g. tab visible) — do not schedule backoff reconnect. */
   const skipCloseReconnectRef = useRef(false);
@@ -103,12 +111,22 @@ export function useRecipeDeck(): DeckUiState & {
     }
   }, []);
 
-  /** Full refresh: deck state + HF token + app settings (initial load, manual refresh). */
+  const refreshAutoStart = useCallback(async () => {
+    try {
+      const a = await api.fetchAutoStart();
+      setAutoStart(a);
+    } catch {
+      setAutoStart({ recipeStem: null, autoStart: false });
+    }
+  }, []);
+
+  /** Full refresh: deck state + HF token + app settings + auto-start (initial load, manual refresh). */
   const refresh = useCallback(async () => {
     await refreshStateOnly();
     await refreshHf();
     await refreshAppSettings();
-  }, [refreshStateOnly, refreshHf, refreshAppSettings]);
+    await refreshAutoStart();
+  }, [refreshStateOnly, refreshHf, refreshAppSettings, refreshAutoStart]);
 
   const appendLog = useCallback((line: string) => {
     setLogs((prev) => ({
@@ -287,6 +305,27 @@ export function useRecipeDeck(): DeckUiState & {
     syncSimpleUiLocalStorage(s);
   }, []);
 
+  /** Save auto-start config: which recipe stem and whether it should auto-start. */
+  const saveAutoStart = useCallback(
+    async (stem: string, enabled: boolean) => {
+      await api.saveAutoStart(stem, enabled);
+      setAutoStart({ recipeStem: stem, autoStart: enabled });
+      await refreshStateOnly();
+    },
+    [refreshStateOnly],
+  );
+
+  /** Toggle auto-start flag for the current recipe. */
+  const toggleAutoStart = useCallback(
+    async (enabled: boolean) => {
+      await api.toggleAutoStart(enabled);
+      setAutoStart((prev) =>
+        prev ? { recipeStem: prev.recipeStem, autoStart: enabled } : prev,
+      );
+    },
+    [],
+  );
+
   const simpleUi = useMemo(() => {
     const e = appSettings?.effective;
     if (e && typeof e.simpleUi === "boolean") {
@@ -309,6 +348,7 @@ export function useRecipeDeck(): DeckUiState & {
     hfToken,
     appSettings,
     simpleUi,
+    autoStart,
     refresh,
     run,
     stop,
@@ -318,6 +358,8 @@ export function useRecipeDeck(): DeckUiState & {
     deleteRecipe,
     saveHf,
     saveAppSettings,
+    saveAutoStart,
+    toggleAutoStart,
     clearRunLog,
   };
 }

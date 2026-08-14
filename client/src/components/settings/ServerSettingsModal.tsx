@@ -17,6 +17,8 @@ export interface ServerSettingsModalProps {
   onSaveHf: () => void | Promise<void>;
   hfTokenLoading: boolean;
   onRefreshRecipes: () => void | Promise<void>;
+  autoStartState: { recipeStem: string | null; autoStart: boolean } | null;
+  onAutoStartChange: (stem: string, enabled: boolean) => Promise<void>;
 }
 
 export function ServerSettingsModal(props: ServerSettingsModalProps): ReactElement {
@@ -32,6 +34,8 @@ export function ServerSettingsModal(props: ServerSettingsModalProps): ReactEleme
     onSaveHf,
     hfTokenLoading,
     onRefreshRecipes,
+    autoStartState,
+    onAutoStartChange,
   } = props;
 
   useEffect(() => {
@@ -88,6 +92,8 @@ export function ServerSettingsModal(props: ServerSettingsModalProps): ReactEleme
             onSaveHf={onSaveHf}
             hfTokenLoading={hfTokenLoading}
             onRefreshRecipes={onRefreshRecipes}
+            autoStartState={autoStartState}
+            onAutoStartChange={onAutoStartChange}
           />
         </div>
       </div>

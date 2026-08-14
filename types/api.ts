@@ -67,3 +67,11 @@ export interface DockerListRow {
   names: string;
   ports: string;
 }
+
+/** Auto-start state for the current recipe (persisted in `.current-recipe`). */
+export interface AutoStartState {
+  /** The recipe stem configured for auto-start (null if no recipe is configured). */
+  recipeStem: string | null;
+  /** Whether auto-start is enabled. */
+  autoStart: boolean;
+}
