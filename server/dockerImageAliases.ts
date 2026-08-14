@@ -1,5 +1,8 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import type { DockerImageAliasPair } from "./dockerImageAliases.types.js";
+
+export type { DockerImageAliasPair } from "./dockerImageAliases.types.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -8,18 +11,6 @@ const IMAGE_REF_RE = /^[a-zA-Z0-9._/@:-]+$/;
 
 function safeImageRef(s: string): boolean {
   return s.length > 0 && s.length <= 256 && IMAGE_REF_RE.test(s);
-}
-
-export interface DockerImageAliasPair {
-  /** Existing local image (`docker tag` source). */
-  source: string;
-  /** Tag name recipes may reference (`docker tag` target). */
-  target: string;
-  /**
-   * If true, tag failure is logged only (does not fail Run). Used for the built-in
-   * spark sidekick alias when the base image may not exist yet (e.g. primary vLLM image not built).
-   */
-  optional?: boolean;
 }
 
 /**

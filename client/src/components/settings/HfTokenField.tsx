@@ -1,6 +1,9 @@
 import { useState } from "react";
 import type { ReactElement } from "react";
 import styles from "./HfTokenField.module.css";
+import type { HfTokenFieldProps } from "./HfTokenField.types";
+
+export type { HfTokenFieldProps } from "./HfTokenField.types";
 
 function IconEye(): ReactElement {
   return (
@@ -40,15 +43,6 @@ function IconEyeOff(): ReactElement {
       <line x1="1" y1="1" x2="23" y2="23" />
     </svg>
   );
-}
-
-export interface HfTokenFieldProps {
-  value: string;
-  onChange: (value: string) => void;
-  /** Called when the field loses focus (e.g. persist token without an extra Save click). */
-  onBlur?: () => void;
-  placeholder?: string;
-  id?: string;
 }
 
 export function HfTokenField(props: HfTokenFieldProps): ReactElement {

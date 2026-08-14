@@ -1,14 +1,8 @@
 import fs from "node:fs";
 import type { AppConfig } from "./config.js";
+import type { Paths } from "./paths.types.js";
 
-export interface Paths {
-  sparkRoot: string;
-  recipesDir: string;
-  runRecipePy: string;
-  runRecipeSh: string;
-  envFile: string;
-  tempRunsDir: string;
-}
+export type { Paths } from "./paths.types.js";
 
 /** Resolved paths from env + `SPARK_VLLM_ROOT` (see `loadConfig`). */
 export function buildPaths(cfg: AppConfig): Paths {

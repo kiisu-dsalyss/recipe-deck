@@ -1,8 +1,6 @@
-import { once } from "node:events";
 import { spawn, type ChildProcess } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
-import treeKill from "tree-kill";
 import type { AppConfig } from "./config.js";
 import type { Paths } from "./paths.js";
 import { ensureDir } from "./paths.js";
@@ -23,18 +21,11 @@ import type {
   SlotSnapshot,
   VllmLiveStats,
 } from "../types/index.js";
+import { buildLaunchHint, pushRecipeOverrideArgs } from "./slotControllerSpawn.js";
+import { stopChildForce, stopChildGraceful } from "./slotControllerStop.js";
+import type { LogBroadcast, StateBroadcast } from "./slotController.types.js";
 
-export type LogBroadcast = (slot: SlotId, line: string) => void;
-export type StateBroadcast = () => void;
-
-function treeKillAsync(pid: number, signal: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    treeKill(pid, signal, (err) => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
-}
+export type { LogBroadcast, StateBroadcast } from "./slotController.types.js";
 
 export class SlotController {
   private phase: SlotPhase = "IDLE";
@@ -255,50 +246,15 @@ export class SlotController {
     }
 
     const ro = opts.recipeOverrides;
-    if (ro) {
-      if (
-        ro.gpu_memory_utilization !== undefined &&
-        Number.isFinite(ro.gpu_memory_utilization)
-      ) {
-        args.push("--gpu-mem", String(ro.gpu_memory_utilization));
-      }
-      if (ro.tensor_parallel !== undefined && Number.isFinite(ro.tensor_parallel)) {
-        args.push("--tensor-parallel", String(Math.round(ro.tensor_parallel)));
-      }
-      if (ro.max_model_len !== undefined && Number.isFinite(ro.max_model_len)) {
-        args.push("--max-model-len", String(Math.round(ro.max_model_len)));
-      }
-      const cuda = ro.cuda_visible_devices?.trim();
-      if (cuda) {
-        args.push("-e", `CUDA_VISIBLE_DEVICES=${cuda}`);
-      }
-    }
+    pushRecipeOverrideArgs(args, ro);
 
-    const hintParts: string[] = [
-      `yaml model=${probe.model ?? "?"}`,
-      `container=${probe.container ?? "?"}`,
-      `yaml_gpu_mem=${probe.gpuMemDefault ?? "?"}`,
-    ];
-    if (ro?.gpu_memory_utilization !== undefined && Number.isFinite(ro.gpu_memory_utilization)) {
-      hintParts.push(`cli --gpu-mem ${ro.gpu_memory_utilization}`);
-    }
-    if (ro?.tensor_parallel !== undefined && Number.isFinite(ro.tensor_parallel)) {
-      hintParts.push(`cli --tensor-parallel ${Math.round(ro.tensor_parallel)}`);
-    }
-    if (ro?.max_model_len !== undefined && Number.isFinite(ro.max_model_len)) {
-      hintParts.push(`cli --max-model-len ${Math.round(ro.max_model_len)}`);
-    }
-    const cudaHint = ro?.cuda_visible_devices?.trim();
-    if (cudaHint) {
-      hintParts.push(`cli -e CUDA_VISIBLE_DEVICES=${cudaHint}`);
-    }
-
-    const argvDisplay = [exe, ...args]
-      .map((a) => (/\s/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a))
-      .join(" ");
-    const argvShort =
-      argvDisplay.length > 280 ? `${argvDisplay.slice(0, 280)}…` : argvDisplay;
-    this.recipeLaunchHint = `${hintParts.join(" · ")} · ${argvShort}`;
+    const { hintParts, argvDisplay, recipeLaunchHint } = buildLaunchHint(
+      probe,
+      ro,
+      exe,
+      args,
+    );
+    this.recipeLaunchHint = recipeLaunchHint;
 
     this.broadcastState();
 
@@ -380,39 +336,14 @@ export class SlotController {
       return;
     }
     this.intentionalStop = true;
-    const pid = ch.pid;
-    const closeP = once(ch, "close");
-    try {
-      await treeKillAsync(pid, "SIGTERM");
-    } catch {
-      /* ignore */
-    }
-    await Promise.race([
-      closeP,
-      new Promise<void>((r) => setTimeout(r, this.cfg.bootSigtermGraceMs)),
-    ]);
-    try {
-      await treeKillAsync(pid, "SIGKILL");
-    } catch {
-      /* ignore */
-    }
-    await Promise.race([closeP, new Promise<void>((r) => setTimeout(r, 3000))]);
+    await stopChildGraceful({ child: ch, graceMs: this.cfg.bootSigtermGraceMs });
   }
 
   private async stopForceInternal(): Promise<void> {
     const ch = this.child;
     if (!ch?.pid) return;
-    const pid = ch.pid;
     this.intentionalStop = true;
-    try {
-      await treeKillAsync(pid, "SIGKILL");
-    } catch {
-      /* ignore */
-    }
-    await Promise.race([
-      once(ch, "close"),
-      new Promise<void>((r) => setTimeout(r, 3000)),
-    ]);
+    await stopChildForce(ch);
   }
 
   async stopForce(): Promise<void> {
@@ -425,16 +356,7 @@ export class SlotController {
       return;
     }
     this.intentionalStop = true;
-    const pid = ch.pid;
-    try {
-      await treeKillAsync(pid, "SIGKILL");
-    } catch {
-      /* ignore */
-    }
-    await Promise.race([
-      once(ch, "close"),
-      new Promise<void>((r) => setTimeout(r, 3000)),
-    ]);
+    await stopChildForce(ch);
   }
 
   close(): void {

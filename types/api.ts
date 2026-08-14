@@ -1,4 +1,4 @@
-import type { SlotId } from "./slot.js";
+import type { SlotId, SlotSnapshot } from "./slot.js";
 
 /** Resolved paths from the server (same sources as `HF_TOKEN`: `$SPARK_VLLM_ROOT/.env` + process env). */
 export interface RecipeDeckPathsPayload {
@@ -58,6 +58,8 @@ export interface ModelCacheProgress {
   bytesOnDisk: number;
   bytesExpected: number | null;
   percent: number | null;
+  /** When `bytesExpected` is null: short reason (HF unreachable, 403, parse error). */
+  expectedSizeError?: string | null;
 }
 
 /** One row from `docker ps` for operator stop controls (zombie containers). */
@@ -74,4 +76,56 @@ export interface AutoStartState {
   recipeStem: string | null;
   /** Whether auto-start is enabled. */
   autoStart: boolean;
+}
+
+export interface FullStatePayload {
+  listenHost?: string;
+  listenPort: number;
+  slots: { a: SlotSnapshot };
+  metrics: MetricsPayload;
+  recipes: RecipeListItem[];
+  modelCacheProgress?: ModelCacheProgress | null;
+  modelCachePollIntervalMs?: number;
+  recipePaths?: RecipeDeckPathsPayload;
+}
+
+export interface HfTokenPayload {
+  stored: boolean;
+  token: string | null;
+}
+
+export interface AppSettingsEffective {
+  sparkVllmRoot: string;
+  switcherPort: number;
+  vllmPortA: number;
+  python: string;
+  readyRegex: string;
+  healthProbeTimeoutMs: number;
+  bootSigtermGraceMs: number;
+  diskStatsIntervalMs: number;
+  gpuStatsIntervalMs: number;
+  vllmMetricsIntervalMs: number;
+  simpleUi: boolean;
+}
+
+export type AppSettingsSaveBody = Omit<AppSettingsEffective, "sparkVllmRoot">;
+
+export interface AppSettingsPayload {
+  effective: AppSettingsEffective;
+  saved: Partial<
+    Record<
+      | "SWITCHER_PORT"
+      | "VLLM_PORT"
+      | "PYTHON"
+      | "READY_REGEX"
+      | "HEALTH_PROBE_TIMEOUT_MS"
+      | "BOOT_SIGTERM_GRACE_MS"
+      | "DISK_STATS_INTERVAL_MS"
+      | "GPU_STATS_INTERVAL_MS"
+      | "VLLM_METRICS_INTERVAL_MS"
+      | "RECIPE_DECK_SIMPLE_UI",
+      string
+    >
+  >;
+  restartRequired: boolean;
 }

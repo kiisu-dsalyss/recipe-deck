@@ -40,6 +40,17 @@
   composes: base;
 }
 
+.unarmed {
+  composes: base;
+  color: var(--color-muted);
+  opacity: 0.42;
+}
+
+.unarmed:hover:not(:disabled) {
+  opacity: 0.72;
+  color: var(--color-text);
+}
+
 .accent {
   composes: base;
   border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));

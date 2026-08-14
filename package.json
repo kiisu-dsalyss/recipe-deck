@@ -1,6 +1,6 @@
 {
   "name": "recipe-deck",
-  "version": "0.2.39",
+    "version": "0.2.40",
   "private": true,
   "license": "MIT",
   "description": "Operator UI for NVIDIA DGX Spark (GB10/GX10 family); requires eugr/spark-vllm-docker on-host (https://github.com/eugr/spark-vllm-docker).",
@@ -13,6 +13,7 @@
     "start": "node dist/server/main.js",
     "start:prod": "node dist/server/main.js",
     "typecheck": "tsc -p server/tsconfig.json --noEmit && tsc -p client/tsconfig.json --noEmit",
+    "check:lines": "bash ./scripts/check-line-limit.sh",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix --max-warnings 0",
     "format": "prettier --write \"client/src/**/*.{ts,tsx,css}\" \"server/**/*.ts\" \"types/**/*.ts\" \"shared/**/*.ts\"",

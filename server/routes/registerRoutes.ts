@@ -25,18 +25,9 @@ import {
 import { modsExistenceResults } from "../modsPaths.js";
 import { scheduleRestartAfterResponse } from "../restartSelf.js";
 import { ensureDockerImageAliases } from "../dockerImageAliases.js";
-import {
-  readCurrentRecipeState,
-  writeCurrentRecipeState,
-  updateCurrentRecipeAutoStart,
-} from "../currentRecipe.js";
-import {
-  isValidDockerContainerId,
-  listLocalDockerImageRefs,
-  listRunningDockerContainers,
-  stopDockerContainer,
-} from "../metrics/dockerPs.js";
 import { RUNNER_API_SLOT, type RecipeRunOverrides, type SlotId } from "../../types/index.js";
+import { registerAutoStartRoutes } from "./registerAutoStartRoutes.js";
+import { registerDockerRoutes } from "./registerDockerRoutes.js";
 
 /** Response body when a client sends legacy `slot: "b"` (or any id other than the single runner). */
 const LEGACY_SLOT_REJECT = {
@@ -313,67 +304,7 @@ export function registerRoutes(app: Express, deck: DeckService): void {
     res.json({ ok: true });
   });
 
-  /** Running containers from `docker ps` (same user as Recipe Deck; needs Docker CLI). */
-  app.get("/api/docker/containers", async (_req: Request, res: Response) => {
-    try {
-      const containers = await listRunningDockerContainers();
-      res.json({ containers });
-    } catch (e) {
-      res.status(503).json({
-        error: e instanceof Error ? e.message : String(e),
-      });
-    }
-  });
-
-  /**
-   * Unique `repository:tag` strings from `docker images` plus `Image` from running containers,
-   * for recipe `container:` field suggestions in the form editor.
-   */
-  app.get("/api/docker/image-options", async (_req: Request, res: Response) => {
-    try {
-      const [running, local] = await Promise.all([
-        listRunningDockerContainers(),
-        listLocalDockerImageRefs(),
-      ]);
-      const set = new Set<string>();
-      for (const row of running) {
-        const im = row.image?.trim();
-        if (im) {
-          set.add(im);
-        }
-      }
-      for (const im of local) {
-        if (im.trim()) {
-          set.add(im.trim());
-        }
-      }
-      const images = Array.from(set).sort((a, b) => a.localeCompare(b));
-      res.json({ images });
-    } catch (e) {
-      res.status(503).json({
-        error: e instanceof Error ? e.message : String(e),
-      });
-    }
-  });
-
-  /** `docker stop <id>` — e.g. zombie containers not tied to the managed runner. */
-  app.post("/api/docker/stop", async (req: Request, res: Response) => {
-    const raw = (req.body as { id?: unknown }).id;
-    const id = typeof raw === "string" ? raw.trim() : "";
-    if (!isValidDockerContainerId(id)) {
-      res.status(400).json({ error: "invalid container id" });
-      return;
-    }
-    try {
-      await stopDockerContainer(id);
-      await deck.refreshLiveDiscovery();
-      res.json({ ok: true });
-    } catch (e) {
-      res.status(400).json({
-        error: e instanceof Error ? e.message : String(e),
-      });
-    }
-  });
+  registerDockerRoutes(app, deck);
 
   app.get("/api/settings/hf-token", async (_req: Request, res: Response) => {
     const token = await readHfTokenFromFile(deck.paths.envFile);
@@ -424,51 +355,7 @@ export function registerRoutes(app: Express, deck: DeckService): void {
     res.json({ ok: true });
   });
 
-  /** Read auto-start state from `.current-recipe`. */
-  app.get("/api/settings/auto-start", async (_req: Request, res: Response) => {
-    const state = await readCurrentRecipeState();
-    res.json({
-      recipeStem: state?.recipeStem ?? null,
-      autoStart: state?.autoStart ?? false,
-    });
-  });
-
-  /** Persist auto-start state (recipe stem + enabled flag). */
-  app.post("/api/settings/auto-start", async (req: Request, res: Response) => {
-    const stem = safeRecipeStem(
-      String((req.body as { stem?: unknown }).stem ?? ""),
-    );
-    if (!stem) {
-      res.status(400).json({ error: "stem required" });
-      return;
-    }
-    const autoStart = Boolean(
-      (req.body as { autoStart?: unknown }).autoStart,
-    );
-    try {
-      await writeCurrentRecipeState(stem, autoStart);
-      res.json({ ok: true });
-    } catch (e) {
-      res.status(500).json({
-        error: e instanceof Error ? e.message : String(e),
-      });
-    }
-  });
-
-  /** Update only the auto-start flag for the current recipe. */
-  app.post("/api/settings/auto-start/toggle", async (req: Request, res: Response) => {
-    const autoStart = Boolean(
-      (req.body as { autoStart?: unknown }).autoStart,
-    );
-    try {
-      await updateCurrentRecipeAutoStart(autoStart);
-      res.json({ ok: true });
-    } catch (e) {
-      res.status(500).json({
-        error: e instanceof Error ? e.message : String(e),
-      });
-    }
-  });
+  registerAutoStartRoutes(app);
 
   app.use("/api", (_req: Request, res: Response) => {
     res.status(404).json({ error: "not found" });

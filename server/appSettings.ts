@@ -1,4 +1,7 @@
 import type { AppConfig } from "./config.js";
+import type { AppSettingsEffective } from "../types/api.js";
+
+export type { AppSettingsEffective } from "../types/api.js";
 
 /** Keys written to `$SPARK_VLLM_ROOT/.env` for Recipe Deck. */
 export const APP_SETTINGS_ENV_KEYS = [
@@ -27,21 +30,6 @@ export function pickAppSettingsFromFile(
     }
   }
   return out;
-}
-
-export interface AppSettingsEffective {
-  sparkVllmRoot: string;
-  switcherPort: number;
-  vllmPortA: number;
-  python: string;
-  readyRegex: string;
-  healthProbeTimeoutMs: number;
-  bootSigtermGraceMs: number;
-  diskStatsIntervalMs: number;
-  gpuStatsIntervalMs: number;
-  vllmMetricsIntervalMs: number;
-  /** When true, client hides animated dots and header aurora (stored in .env). */
-  simpleUi: boolean;
 }
 
 export function appSettingsEffective(cfg: AppConfig): AppSettingsEffective {

@@ -1,29 +1,23 @@
 import {
   RUNNER_API_SLOT,
   type DockerListRow,
-  type ModelCacheProgress,
-  type RecipeDeckPathsPayload,
-  type RecipeListItem,
   type RecipeRunOverrides,
   type SlotId,
-  type SlotSnapshot,
+  type AppSettingsPayload,
+  type AppSettingsSaveBody,
+  type FullStatePayload,
+  type HfTokenPayload,
+  type AutoStartState,
 } from "../../../types/index.js";
-import type { MetricsPayload } from "../../../types/index.js";
 
-export interface FullStatePayload {
-  /** HTTP bind address from server (default homelab: 127.0.0.1). */
-  listenHost?: string;
-  listenPort: number;
-  /** Single managed runner; JSON key `a` is the stable wire id. */
-  slots: { a: SlotSnapshot };
-  metrics: MetricsPayload;
-  recipes: RecipeListItem[];
-  modelCacheProgress?: ModelCacheProgress | null;
-  /** Server refresh interval for hub cache while booting; use for client polling. */
-  modelCachePollIntervalMs?: number;
-  /** Effective paths (override via `$SPARK_VLLM_ROOT/.env`; see `.env.example`). */
-  recipePaths?: RecipeDeckPathsPayload;
-}
+export type {
+  AppSettingsEffective,
+  AppSettingsPayload,
+  AppSettingsSaveBody,
+  AutoStartState as AutoStartApiResponse,
+  FullStatePayload,
+  HfTokenPayload,
+} from "../../../types/index.js";
 
 export async function fetchState(): Promise<FullStatePayload> {
   const r = await fetch("/api/state");
@@ -164,12 +158,6 @@ export async function postRecipeBroken(stem: string, broken: boolean): Promise<v
   }
 }
 
-export interface HfTokenPayload {
-  stored: boolean;
-  /** Present when `stored`; read from server `.env` (homelab: no auth on API). */
-  token: string | null;
-}
-
 export async function fetchHfToken(): Promise<HfTokenPayload> {
   const r = await fetch("/api/settings/hf-token");
   if (!r.ok) throw new Error(`hf ${r.status}`);
@@ -184,44 +172,6 @@ export async function saveHfToken(token: string): Promise<void> {
     body: JSON.stringify({ token }),
   });
   if (!r.ok) throw new Error(`hf save ${r.status}`);
-}
-
-export interface AppSettingsEffective {
-  sparkVllmRoot: string;
-  switcherPort: number;
-  vllmPortA: number;
-  python: string;
-  readyRegex: string;
-  healthProbeTimeoutMs: number;
-  bootSigtermGraceMs: number;
-  diskStatsIntervalMs: number;
-  gpuStatsIntervalMs: number;
-  vllmMetricsIntervalMs: number;
-  /** When true, animated dots and header aurora are off. */
-  simpleUi: boolean;
-}
-
-export type AppSettingsSaveBody = Omit<AppSettingsEffective, "sparkVllmRoot">;
-
-export interface AppSettingsPayload {
-  effective: AppSettingsEffective;
-  /** Subset of keys from `$SPARK_VLLM_ROOT/.env` (when present). */
-  saved: Partial<
-    Record<
-      | "SWITCHER_PORT"
-      | "VLLM_PORT"
-      | "PYTHON"
-      | "READY_REGEX"
-      | "HEALTH_PROBE_TIMEOUT_MS"
-      | "BOOT_SIGTERM_GRACE_MS"
-      | "DISK_STATS_INTERVAL_MS"
-      | "GPU_STATS_INTERVAL_MS"
-      | "VLLM_METRICS_INTERVAL_MS"
-      | "RECIPE_DECK_SIMPLE_UI",
-      string
-    >
-  >;
-  restartRequired: boolean;
 }
 
 export async function fetchAppSettings(): Promise<AppSettingsPayload> {
@@ -254,17 +204,11 @@ export async function postRestartRecipeDeck(): Promise<void> {
   }
 }
 
-/** Auto-start state returned by GET /api/settings/auto-start. */
-export interface AutoStartApiResponse {
-  recipeStem: string | null;
-  autoStart: boolean;
-}
-
 /** Read auto-start state. */
-export async function fetchAutoStart(): Promise<AutoStartApiResponse> {
+export async function fetchAutoStart(): Promise<AutoStartState> {
   const r = await fetch("/api/settings/auto-start");
   if (!r.ok) throw new Error(`auto-start fetch ${r.status}`);
-  return r.json() as Promise<AutoStartApiResponse>;
+  return r.json() as Promise<AutoStartState>;
 }
 
 /** Save auto-start state (recipe stem + enabled flag). */

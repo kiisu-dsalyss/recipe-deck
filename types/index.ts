@@ -15,5 +15,11 @@ export type {
   HfTokenStatus,
   ModelCacheProgress,
   DockerListRow,
+  AutoStartState,
+  FullStatePayload,
+  HfTokenPayload,
+  AppSettingsEffective,
+  AppSettingsSaveBody,
+  AppSettingsPayload,
 } from "./api.js";
 export type { ServerToClientMessage } from "./ws.js";

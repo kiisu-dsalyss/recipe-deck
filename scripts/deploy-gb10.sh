@@ -33,6 +33,7 @@ rsync -avz --delete \
   --exclude recipes \
   --exclude .env \
   --exclude operator.local.env \
+  --exclude .current-recipe \
   ./ "${REMOTE}:${REL}/"
 
 echo "remote: npm ci && npm run build && restart"

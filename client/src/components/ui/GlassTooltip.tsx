@@ -4,17 +4,13 @@ import {
   useRef,
   useState,
   type ReactElement,
-  type ReactNode,
   type TransitionEvent,
 } from "react";
 import { createPortal } from "react-dom";
 import styles from "./GlassTooltip.module.css";
+import type { GlassTooltipProps } from "./GlassTooltip.types";
 
-export interface GlassTooltipProps {
-  /** Hover / focus hint (glass-styled). */
-  label: string;
-  children: ReactNode;
-}
+export type { GlassTooltipProps } from "./GlassTooltip.types";
 
 /**
  * Wraps a control and shows a glassmorphism tooltip on hover and keyboard focus.
@@ -26,15 +22,17 @@ export function GlassTooltip(props: GlassTooltipProps): ReactElement {
   const [open, setOpen] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
   const [coords, setCoords] = useState<{ left: number; top: number } | null>(null);
-  const showTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /** Pointer hover delay before the tooltip appears. */
-  const SHOW_DELAY_MS = 3000;
+  /** After pointer leaves, keep the tip visible this long, then opacity-fade. */
+  const HIDE_DELAY_MS = 1500;
+  /** Extra offset so the cursor (over the control) does not cover the tip. */
+  const POINTER_CLEARANCE_PX = 22;
 
-  const clearShowTimer = useCallback(() => {
-    if (showTimerRef.current !== null) {
-      clearTimeout(showTimerRef.current);
-      showTimerRef.current = null;
+  const clearHideTimer = useCallback(() => {
+    if (hideTimerRef.current !== null) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
     }
   }, []);
 
@@ -44,41 +42,31 @@ export function GlassTooltip(props: GlassTooltipProps): ReactElement {
       return;
     }
     const r = el.getBoundingClientRect();
-    const gap = 8;
-    setCoords({ left: r.left + r.width / 2, top: r.bottom + gap });
+    setCoords({ left: r.left + r.width / 2, top: r.bottom + POINTER_CLEARANCE_PX });
   }, []);
 
-  const showSoon = useCallback(() => {
-    clearShowTimer();
-    setFadeOut(false);
-    showTimerRef.current = setTimeout(() => {
-      setOpen(true);
-      showTimerRef.current = null;
-    }, SHOW_DELAY_MS);
-  }, [clearShowTimer]);
-
-  const showNow = useCallback(() => {
-    clearShowTimer();
+  const show = useCallback(() => {
+    clearHideTimer();
     setFadeOut(false);
     setOpen(true);
-  }, [clearShowTimer]);
+  }, [clearHideTimer]);
 
-  /** Pointer left: stop pending show and immediately start fade-out when visible. */
+  /** Pointer left: wait, then fade out (keyboard blur uses hideNow). */
   const hideSoon = useCallback(() => {
-    clearShowTimer();
-    if (!open) {
-      setFadeOut(false);
-      return;
-    }
-    setFadeOut(true);
-  }, [clearShowTimer, open]);
+    clearHideTimer();
+    setFadeOut(false);
+    hideTimerRef.current = setTimeout(() => {
+      setFadeOut(true);
+      hideTimerRef.current = null;
+    }, HIDE_DELAY_MS);
+  }, [clearHideTimer]);
 
   const hideNow = useCallback(() => {
-    clearShowTimer();
+    clearHideTimer();
     setFadeOut(false);
     setOpen(false);
     setCoords(null);
-  }, [clearShowTimer]);
+  }, [clearHideTimer]);
 
   const onTipTransitionEnd = useCallback(
     (e: TransitionEvent<HTMLDivElement>) => {
@@ -106,14 +94,22 @@ export function GlassTooltip(props: GlassTooltipProps): ReactElement {
     };
   }, [open, label, syncPosition]);
 
+  useLayoutEffect(() => {
+    return () => {
+      if (hideTimerRef.current !== null) {
+        clearTimeout(hideTimerRef.current);
+      }
+    };
+  }, []);
+
   return (
     <>
       <span
         ref={wrapRef}
         className={styles.wrap}
-        onMouseEnter={showSoon}
+        onMouseEnter={show}
         onMouseLeave={hideSoon}
-        onFocus={showNow}
+        onFocus={show}
         onBlur={hideNow}
       >
         {children}

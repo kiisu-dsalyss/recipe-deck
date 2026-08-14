@@ -103,3 +103,26 @@
   flex-wrap: wrap;
   gap: var(--space-2);
 }
+
+.btnGhost {
+  border: 1px solid var(--color-border);
+  background: var(--glass-panel-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  color: var(--color-text);
+  border-radius: var(--radius-sm);
+  padding: 0.28rem 0.6rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.btnGhost:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent) 12%, var(--glass-panel-bg));
+}
+
+.btnGhost:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

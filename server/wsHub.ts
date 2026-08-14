@@ -57,4 +57,4 @@ export class WsHub {
 
 }
 
-export type LogBroadcastFn = (slot: SlotId, line: string) => void;
+export type { LogBroadcastFn } from "./wsHub.types.js";

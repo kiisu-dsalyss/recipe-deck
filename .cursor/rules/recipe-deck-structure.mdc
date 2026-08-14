@@ -1,0 +1,17 @@
+---
+description: Recipe Deck file structure — types in *.types.ts; 400-line cap
+globs: "{client,server,types,shared}/**/*.{ts,tsx}"
+alwaysApply: false
+---
+
+# Recipe Deck structure
+
+## Interfaces live in type files
+
+- Shared API / WS / slot DTOs: `types/` (`api.ts`, `slot.ts`, `ws.ts`, barrel `index.ts`).
+- Feature-local contracts: colocated `*.types.ts` next to the implementation (e.g. `RunningModelPanel.types.ts`, `deckService.types.ts`).
+- Do **not** add `export interface` or exported object-shape `export type` in `.tsx` files or in large service modules. Re-export from the implementation file if callers already import from there.
+
+## Line limit
+
+No source file under `client/src`, `server`, `types`, or `shared` may exceed **400** lines (`wc -l`). Split by concern (form vs shell, cache vs logs, route groups) before opening a PR. Gate: `npm run check:lines`.

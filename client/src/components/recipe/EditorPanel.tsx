@@ -1,10 +1,13 @@
 import type { ReactElement } from "react";
-import type { RecipeDeckPathsPayload, RecipeListItem } from "../../../../types/index.js";
 import { basenamePath } from "../../lib/pathBasename.js";
 import { IconPlay, IconRevert, IconSave, IconTrash } from "../ui/glyphs.js";
+import { RecipeStemSelect } from "../runner/RecipeStemSelect.js";
 import { RecipeYamlDualEditor } from "./RecipeYamlDualEditor.js";
 import { ToolbarIconButton } from "../ui/ToolbarIconButton.js";
+import type { EditorPanelProps } from "./EditorPanel.types";
 import styles from "./EditorPanel.module.css";
+
+export type { EditorPanelProps, EditorSaveStatus } from "./EditorPanel.types";
 
 /** Align with server `safeRecipeStem` (path segments + `/`). */
 function sanitizeStem(raw: string): string {
@@ -13,29 +16,6 @@ function sanitizeStem(raw: string): string {
     .replace(/[^a-zA-Z0-9._/-]/g, "")
     .replace(/\/+/g, "/")
     .replace(/^\/+/, "");
-}
-
-export type EditorSaveStatus = "idle" | "saving" | "saved" | "error";
-
-export interface EditorPanelProps {
-  recipes: RecipeListItem[];
-  stem: string;
-  onStemChange: (stem: string) => void;
-  content: string;
-  dirty: boolean;
-  saveStatus: EditorSaveStatus;
-  onContentChange: (value: string) => void;
-  onSave: () => void;
-  onRunBuffer: () => void;
-  onRevert: () => void;
-  /** Persist `recipe_deck.broken` for an existing recipe on disk. */
-  onBrokenChange?: (broken: boolean) => void;
-  /** Shown when the stem matches a file on disk. */
-  onRequestDelete?: () => void;
-  /** True while this recipe is actively running (BOOTING/HEALTHY). */
-  deleteBlocked?: boolean;
-  /** Server-resolved paths (optional until first state load). */
-  recipePaths?: RecipeDeckPathsPayload | null;
 }
 
 export function EditorPanel(props: EditorPanelProps): ReactElement {
@@ -151,25 +131,20 @@ export function EditorPanel(props: EditorPanelProps): ReactElement {
             Recipe name
           </label>
           <div className={styles.fileNameControls}>
-            <input
-              id="editor-recipe-stem"
-              className={styles.fileSelect}
-              type="text"
-              list="editor-recipe-stems"
-              autoComplete="off"
-              spellCheck={false}
-              placeholder="e.g. my-recipe"
-              title={`Saved under ${recipePaths?.recipesDir ?? "RECIPE_DECK_RECIPES_DIR (see server .env)"} — stem segments: letters, digits, . _ - ; use / for folders`}
-              value={stem}
-              onChange={(e) => {
-                onStemChange(sanitizeStem(e.target.value));
-              }}
-            />
-            <datalist id="editor-recipe-stems">
-              {recipes.map((r) => (
-                <option key={r.stem} value={r.stem} label={r.relativePath} />
-              ))}
-            </datalist>
+            <div className={styles.stemPick}>
+              <RecipeStemSelect
+                id="editor-recipe-stem"
+                recipes={recipes}
+                value={stem}
+                editable
+                includeEmpty={false}
+                placeholder="e.g. my-recipe"
+                title={`Saved under ${recipePaths?.recipesDir ?? "RECIPE_DECK_RECIPES_DIR (see server .env)"} — stem segments: letters, digits, . _ - ; use / for folders`}
+                onChange={(next) => {
+                  onStemChange(sanitizeStem(next));
+                }}
+              />
+            </div>
             {selectedMeta && onBrokenChange ? (
               <label className={styles.brokenToggle}>
                 <span className={styles.brokenCheckboxWrap}>

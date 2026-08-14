@@ -1,18 +1,9 @@
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import { DbLevelMeter } from "../DbLevelMeter";
+import type { StatCardProps } from "./StatCard.types";
 import styles from "../LiveStatsPanel.module.css";
 
-export interface StatCardProps {
-  label: string;
-  value: ReactNode;
-  peak?: ReactNode;
-  peakTitle?: string;
-  /** Single-channel meter (0–1). */
-  meterFraction?: number | null;
-  /** Two-channel meter. */
-  stereoFractions?: [number, number];
-  valueTitle?: string;
-}
+export type { StatCardProps } from "./StatCard.types";
 
 /**
  * Glass card shell shared by modular live-stat tiles (meter optional).

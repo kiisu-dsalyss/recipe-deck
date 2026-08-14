@@ -7,8 +7,8 @@ Recipe Deck is an **operator web UI** for **NVIDIA DGX Spark**-class systems (GB
 - **Frontend**: React 19 + Vite 6 + CSS Modules (no inline styles for layout/theme)
 - **Backend**: Node.js (Express + ws) serving REST API, WebSocket logs, and SPA
 - **Config**: `.env` at repo root + `$SPARK_VLLM_ROOT/.env` for HF_TOKEN and spark-specific vars. State file: `.current-recipe` at repo root (auto-start config).
-- **Types**: Shared under `types/` (no inline exported shapes)
-- **Lints**: ESLint 9.x, Prettier, TypeScript
+- **Types**: Shared under `types/`; feature contracts in colocated `*.types.ts` (no exported object shapes in `.tsx` or large service files)
+- **Lints**: ESLint 9.x, Prettier, TypeScript, `npm run check:lines` (400-line cap)
 
 ## Repository layout
 
@@ -95,7 +95,8 @@ scripts/        -- deploy-gb10.sh, setup.sh
 
 ## Making changes
 
-- **Add a setting**: Update `AppConfig` in `server/config.ts`, add to `envFile` handling in `envMerge.ts`, add route in `registerRoutes.ts`, add UI in `ServerSettingsModal.tsx` and `AppSettingsPanel.tsx`.
+- **Interfaces**: Put exported types in `types/` or a colocated `*.types.ts`. Keep `AppConfig` in `server/config.types.ts`.
+- **Add a setting**: Update `AppConfig` in `server/config.types.ts` / `loadConfig` in `server/config.ts`, add to `envFile` handling in `envMerge.ts`, add route in `registerRoutes.ts`, add UI in `ServerSettingsModal.tsx` and `AppSettingsPanel.tsx`.
 - **Add a metric**: Add to `vllmLiveStats.ts` parsing, add field to `VllmLiveStats` type, add stat card component in `liveStats/stats/`, wire into `LiveStatsPanel`.
 - **Add a route**: Add handler in `registerRoutes.ts`, add client function in `api/client.ts`, add type in `types/api.ts` or `types/slot.ts`, wire into UI.
 - **CSS**: CSS Modules only (`*.module.css`). Tokens in `styles/tokens.css`.
@@ -106,5 +107,6 @@ Every new feature or bug fix must have a **detailed commit message** with bullet
 ## Verification
 - `npm run lint` — ESLint (zero warnings)
 - `npm run typecheck` — TypeScript typecheck (server + client)
+- `npm run check:lines` — no TS/TSX over 400 lines
 - `npm run build` — Production build
 - `npm run format` — Prettier formatting
