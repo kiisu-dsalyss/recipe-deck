@@ -16,7 +16,9 @@
     "check:lines": "bash ./scripts/check-line-limit.sh",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix --max-warnings 0",
-    "format": "prettier --write \"client/src/**/*.{ts,tsx,css}\" \"server/**/*.ts\" \"types/**/*.ts\" \"shared/**/*.ts\"",
+    "format": "prettier --write \"client/src/**/*.{ts,tsx,css}\" \"server/**/*.ts\" \"types/**/*.ts\" \"shared/**/*.ts\" \"tests/**/*.ts\"",
+    "test": "tsx --test tests/**/*.test.ts",
+    "ci": "npm run lint && npm run typecheck && npm run check:lines && npm run test && npm run build",
     "setup": "bash ./scripts/setup.sh",
     "demo:test": "npm --prefix demo run test",
     "demo:mov": "bash demo/scripts/encode-mov.sh"

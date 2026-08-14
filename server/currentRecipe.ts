@@ -23,6 +23,41 @@ function repoRoot(): string {
 /** Absolute path to the app's .current-recipe state file. */
 const STATE_PATH = path.join(repoRoot(), ".current-recipe");
 
+/** Parse `.current-recipe` KEY=VAL text. Null if there is no stem. */
+export function parseCurrentRecipeText(raw: string): AutoStartState | null {
+  const lines = raw.split(/\r?\n/);
+  let recipeStem: string | null = null;
+  let autoStart = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) {
+      continue;
+    }
+
+    const eqIdx = trimmed.indexOf("=");
+    if (eqIdx < 0) {
+      continue;
+    }
+
+    const key = trimmed.slice(0, eqIdx).trim();
+    const value = trimmed.slice(eqIdx + 1).trim();
+
+    if (key === "CURRENT_RECIPE" && value.length > 0) {
+      recipeStem = value;
+    } else if (key === "AUTOSTART_CURRENT_RECIPE") {
+      autoStart =
+        value === "true" || value === "1" || value.toLowerCase() === "yes";
+    }
+  }
+
+  if (!recipeStem) {
+    return null;
+  }
+
+  return { recipeStem, autoStart };
+}
+
 /**
  * Read the current recipe state from `.current-recipe`.
  * Returns null state if the file doesn't exist or is empty.
@@ -34,37 +69,7 @@ export async function readCurrentRecipeState(): Promise<AutoStartState | null> {
   } catch {
     return null;
   }
-
-  const lines = raw.split(/\r?\n/);
-  let recipeStem: string | null = null;
-  let autoStart = false;
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-
-    const eqIdx = trimmed.indexOf("=");
-    if (eqIdx < 0) continue;
-
-    const key = trimmed.slice(0, eqIdx).trim();
-    const value = trimmed.slice(eqIdx + 1).trim();
-
-    if (key === "CURRENT_RECIPE" && value.length > 0) {
-      recipeStem = value;
-    } else if (key === "AUTOSTART_CURRENT_RECIPE") {
-      autoStart =
-        value === "true" ||
-        value === "1" ||
-        value.toLowerCase() === "yes";
-    }
-  }
-
-  // Need at least a recipe stem to be meaningful
-  if (!recipeStem) {
-    return null;
-  }
-
-  return { recipeStem, autoStart };
+  return parseCurrentRecipeText(raw);
 }
 
 /**
