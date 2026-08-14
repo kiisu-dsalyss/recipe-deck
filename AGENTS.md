@@ -8,7 +8,7 @@ Recipe Deck is an **operator web UI** for **NVIDIA DGX Spark**-class systems (GB
 - **Backend**: Node.js (Express + ws) serving REST API, WebSocket logs, and SPA
 - **Config**: `.env` at repo root + `$SPARK_VLLM_ROOT/.env` for HF_TOKEN and spark-specific vars. State file: `.current-recipe` at repo root (auto-start config).
 - **Types**: Shared under `types/`; feature contracts in colocated `*.types.ts` (no exported object shapes in `.tsx` or large service files)
-- **Lints**: ESLint 9.x, Prettier, TypeScript, `npm run check:lines` (400-line cap)
+- **Lints**: ESLint 9.x, Prettier, TypeScript, `npm run check:lines` (400-line cap). Local/CI gate: `npm run ci` (lint, typecheck, line cap, unit tests, build).
 
 ## Repository layout
 
@@ -23,6 +23,7 @@ client/src/     -- Vite + React SPA
   lib/          -- helpers: formatBytes, pathBasename, runnerState, recipeDeckBroken
 docs/           -- ARCHITECTURE.md, UI.md, OPERATOR-LOCAL.md, systemd unit, examples
 scripts/        -- deploy-gb10.sh, setup.sh
+tests/          -- node:test unit tests (critical helpers only)
 ```
 
 ## How it works — Data flow
@@ -105,8 +106,10 @@ scripts/        -- deploy-gb10.sh, setup.sh
 Every new feature or bug fix must have a **detailed commit message** with bullet-point body explaining WHAT changed and WHY. Run `git commit --amend` if a message is too terse. Commit frequently — context compaction loses the plot.
 
 ## Verification
+- `npm run ci` — lint, typecheck, line cap, unit tests, production build
 - `npm run lint` — ESLint (zero warnings)
 - `npm run typecheck` — TypeScript typecheck (server + client)
 - `npm run check:lines` — no TS/TSX over 400 lines
+- `npm run test` — unit tests (`tests/`)
 - `npm run build` — Production build
 - `npm run format` — Prettier formatting
