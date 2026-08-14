@@ -1,18 +1,9 @@
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
 import { GlassTooltip } from "./GlassTooltip.js";
+import type { ToolbarIconButtonProps } from "./ToolbarIconButton.types";
 import styles from "./ToolbarIconButton.module.css";
 
-export type ToolbarIconVariant = "muted" | "accent" | "danger";
-
-export interface ToolbarIconButtonProps {
-  /** Shown in glass tooltip and as aria-label. */
-  label: string;
-  variant?: ToolbarIconVariant;
-  disabled?: boolean;
-  busy?: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}
+export type { ToolbarIconButtonProps, ToolbarIconVariant } from "./ToolbarIconButton.types";
 
 export function ToolbarIconButton(props: ToolbarIconButtonProps): ReactElement {
   const { label, variant = "muted", disabled, busy, onClick, children } = props;

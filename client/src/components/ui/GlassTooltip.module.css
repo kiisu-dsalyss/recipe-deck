@@ -24,7 +24,7 @@
   box-shadow: var(--shadow-modal);
   pointer-events: none;
   opacity: 1;
-  transition: opacity 1s ease;
+  transition: opacity 0.32s ease;
 }
 
 .tipFadeOut {

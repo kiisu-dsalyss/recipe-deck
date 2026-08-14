@@ -1,13 +1,10 @@
 import type { ReactElement } from "react";
-import type { MetricsPayload, SlotSnapshot } from "../../../../types/index.js";
 import { formatBytes } from "../../lib/formatBytes";
 import { DEFAULT_LIVE_STAT_TILES, renderLiveStatTiles } from "./liveStats/defaultRegistry";
+import type { LiveStatsPanelProps } from "./LiveStatsPanel.types";
 import styles from "./LiveStatsPanel.module.css";
 
-export interface LiveStatsPanelProps {
-  snap: SlotSnapshot;
-  metrics: MetricsPayload | null;
-}
+export type { LiveStatsPanelProps } from "./LiveStatsPanel.types";
 
 export function LiveStatsPanel(props: LiveStatsPanelProps): ReactElement {
   const { snap, metrics } = props;

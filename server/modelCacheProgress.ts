@@ -4,6 +4,7 @@ import path from "node:path";
 import { promisify } from "node:util";
 
 import { loadEnvKeyValue } from "./envMerge.js";
+import type { ModelCacheProgress } from "../types/api.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -341,20 +342,12 @@ async function fetchHfRepoExpectedBytesWithModelInfo(
   return bytes;
 }
 
-export interface ModelCacheProgressSnapshot {
-  modelId: string;
-  /** Bytes on disk under the HF hub repo folder (recursive). */
-  bytesOnDisk: number;
-  /** Total expected size from Hub tree API (sum of file sizes), or null if unknown. */
-  bytesExpected: number | null;
-  /** 0–100 when expected is known; null otherwise. */
-  percent: number | null;
-}
+export type { ModelCacheProgress as ModelCacheProgressSnapshot };
 
 export async function computeModelCacheProgress(
   modelId: string,
   opts: { hfHubCacheDir?: string; hfToken?: string | null; envFile?: string | null },
-): Promise<ModelCacheProgressSnapshot> {
+): Promise<ModelCacheProgress> {
   const repoId = modelId.trim();
   const hubRoot = resolveHubRoot(opts.hfHubCacheDir);
   const hubRoots = await hubRootsToTry(hubRoot, opts.envFile ?? undefined);
@@ -373,5 +366,7 @@ export async function computeModelCacheProgress(
     bytesOnDisk: onDisk,
     bytesExpected,
     percent,
+    expectedSizeError:
+      bytesExpected != null && bytesExpected > 0 ? null : "HF size unavailable",
   };
 }

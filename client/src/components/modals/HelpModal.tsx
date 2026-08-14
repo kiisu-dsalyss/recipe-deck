@@ -1,11 +1,10 @@
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 import { SPARK_VLLM_DOCKER_REPO_URL } from "../../constants/upstream";
+import type { HelpModalProps } from "./HelpModal.types";
 import styles from "./HelpModal.module.css";
 
-export interface HelpModalProps {
-  onClose: () => void;
-}
+export type { HelpModalProps } from "./HelpModal.types";
 
 export function HelpModal(props: HelpModalProps): ReactElement {
   const { onClose } = props;

@@ -1,15 +1,8 @@
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
+import type { ConfirmModalProps } from "./ConfirmModal.types";
 import styles from "./ConfirmModal.module.css";
 
-export interface ConfirmModalProps {
-  title: string;
-  children: ReactNode;
-  confirmLabel: string;
-  cancelLabel?: string;
-  danger?: boolean;
-  onConfirm: () => void;
-  onCancel: () => void;
-}
+export type { ConfirmModalProps } from "./ConfirmModal.types";
 
 export function ConfirmModal(props: ConfirmModalProps): ReactElement {
   const {

@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import type { AutoStartState } from "../types/api.js";
 
 /**
  * Resolve the repo root from this file's module path.
@@ -22,18 +23,11 @@ function repoRoot(): string {
 /** Absolute path to the app's .current-recipe state file. */
 const STATE_PATH = path.join(repoRoot(), ".current-recipe");
 
-export interface CurrentRecipeState {
-  /** Recipe stem that was last run (e.g. "gemma-4-26B-A4B-it"). */
-  recipeStem: string | null;
-  /** When true, auto-launch this recipe on server startup. */
-  autoStart: boolean;
-}
-
 /**
  * Read the current recipe state from `.current-recipe`.
  * Returns null state if the file doesn't exist or is empty.
  */
-export async function readCurrentRecipeState(): Promise<CurrentRecipeState | null> {
+export async function readCurrentRecipeState(): Promise<AutoStartState | null> {
   let raw: string;
   try {
     raw = await fs.readFile(STATE_PATH, "utf8");

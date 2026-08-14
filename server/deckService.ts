@@ -20,29 +20,15 @@ import { TokenRateTracker } from "./metrics/vllmTokens.js";
 import {
   RUNNER_API_SLOT,
   type DockerContainerInfo,
-  type ModelCacheProgress,
-  type RecipeDeckPathsPayload,
   type RecipeListItem,
   type MetricsPayload,
-  type SlotSnapshot,
 } from "../types/index.js";
-import { readHfTokenFromFile } from "./envMerge.js";
-import { computeModelCacheProgress } from "./modelCacheProgress.js";
-import { readCurrentRecipeState } from "./currentRecipe.js";
+import { tryAutoStart } from "./deckAutoStart.js";
+import { pollBootingModelCache } from "./deckModelCache.js";
+import type { DeckFullStatePayload } from "./deckService.types.js";
+import type { ModelCacheProgress } from "../types/index.js";
 
-/** Single object for GET /api/state and WebSocket `state` messages (keep in sync). */
-export interface DeckFullStatePayload {
-  listenHost: string;
-  listenPort: number;
-  slots: { a: SlotSnapshot };
-  metrics: MetricsPayload;
-  recipes: RecipeListItem[];
-  /** Hub download vs expected size while booting (null otherwise). */
-  modelCacheProgress: ModelCacheProgress | null;
-  /** Matches `MODEL_CACHE_POLL_MS` (for client polling while booting). */
-  modelCachePollIntervalMs: number;
-  recipePaths: RecipeDeckPathsPayload;
-}
+export type { DeckFullStatePayload } from "./deckService.types.js";
 
 export class DeckService {
   readonly paths: Paths;
@@ -96,8 +82,10 @@ export class DeckService {
     this.recipeRunCounts = await loadUsageStatsFile(this.usageStatsPath);
     await this.refreshRecipes();
 
-    // Try to auto-start the last configured recipe
-    await this.tryAutoStart();
+    await tryAutoStart({
+      recipesDir: this.paths.recipesDir,
+      runner: this.runner,
+    });
 
     const watcher = chokidar.watch(this.paths.recipesDir, {
       ignoreInitial: true,
@@ -130,33 +118,19 @@ export class DeckService {
 
   private async refreshModelCacheProgress(): Promise<void> {
     const sa = this.runner.snapshot();
-    const bootModelId =
-      sa.phase === "BOOTING" && sa.recipeModelId ? sa.recipeModelId : null;
-    if (!bootModelId) {
+    const next = await pollBootingModelCache({
+      phase: sa.phase,
+      recipeModelId: sa.recipeModelId,
+      hfHubCacheDir: this.cfg.hfHubCacheDir,
+      envFile: this.paths.envFile,
+    });
+    if (!next) {
       if (this.modelCacheProgress !== null) {
         this.modelCacheProgress = null;
         this.broadcastState();
       }
       return;
     }
-    let hfToken: string | null =
-      process.env.HF_TOKEN ?? process.env.HUGGING_FACE_HUB_TOKEN ?? null;
-    if (!hfToken?.trim()) {
-      hfToken = await readHfTokenFromFile(this.paths.envFile);
-    }
-    const tok = hfToken?.trim() || null;
-
-    const snap = await computeModelCacheProgress(bootModelId, {
-      hfHubCacheDir: this.cfg.hfHubCacheDir,
-      hfToken: tok,
-      envFile: this.paths.envFile,
-    });
-    const next: ModelCacheProgress = {
-      modelId: snap.modelId,
-      bytesOnDisk: snap.bytesOnDisk,
-      bytesExpected: snap.bytesExpected,
-      percent: snap.percent,
-    };
     this.modelCacheProgress = next;
     this.broadcastState();
   }
@@ -348,46 +322,6 @@ export class DeckService {
   async refreshLiveDiscovery(): Promise<void> {
     await this.probeLiveEndpoints();
     this.broadcastState();
-  }
-
-  /**
-   * Try to auto-start the last configured recipe on server startup.
-   * Only runs if auto-start is enabled and the recipe file still exists.
-   */
-  private async tryAutoStart(): Promise<void> {
-    const state = await readCurrentRecipeState();
-    if (!state || !state.autoStart || !state.recipeStem) {
-      return;
-    }
-
-    // Check the recipe file exists before attempting to run
-    const recipeAbs =
-      resolveRecipeDiskPath(this.paths.recipesDir, state.recipeStem);
-    if (!recipeAbs) {
-      console.error(
-        `[recipe-deck] auto-start recipe not found on disk: ${state.recipeStem}`,
-      );
-      return;
-    }
-
-    console.info(
-      `[recipe-deck] auto-starting recipe: ${state.recipeStem}`,
-    );
-    try {
-      await this.runner.run({
-        recipeStem: state.recipeStem,
-        recipeAbsPath: recipeAbs,
-        solo: true,
-        recipeOverrides: undefined,
-      });
-      console.info(
-        `[recipe-deck] auto-start completed for: ${state.recipeStem}`,
-      );
-    } catch (e) {
-      console.error(
-        `[recipe-deck] auto-start failed for ${state.recipeStem}: ${e instanceof Error ? e.message : String(e)}`,
-      );
-    }
   }
 
   /** Save the current recipe state (called after a successful run). */

@@ -1,4 +1,5 @@
 import type { ReactElement } from "react";
+import type { DbLevelMeterProps } from "./DbLevelMeter.types";
 import styles from "./DbLevelMeter.module.css";
 
 const SEGMENTS = 14;
@@ -22,16 +23,6 @@ function segmentStates(frac: number): { lit: boolean; peakTip: boolean }[] {
   }));
 }
 
-export interface DbLevelMeterProps {
-  /** One channel: single column of segments (0 = empty, 1 = full). */
-  fraction?: number;
-  /** Two channels: left | right stereo columns (e.g. running / waiting). */
-  stereoFractions?: [number, number];
-}
-
-/**
- * Subtle LED-style level meter for stat card backgrounds (VU / stereo dB vibe).
- */
 export function DbLevelMeter(props: DbLevelMeterProps): ReactElement {
   const { fraction, stereoFractions } = props;
 
