@@ -81,6 +81,16 @@ export function IconForceKill(): ReactElement {
   );
 }
 
+/** Power / boot — auto-start at boot */
+export function IconPower(): ReactElement {
+  return (
+    <svg {...common}>
+      <path d="M12 2v10" />
+      <path d="M18.36 6.64a9 9 0 1 1-12.73 0" />
+    </svg>
+  );
+}
+
 /** Brain — hub cache / model load progress (pulsing in Running Model) */
 export function IconBrain(): ReactElement {
   return (

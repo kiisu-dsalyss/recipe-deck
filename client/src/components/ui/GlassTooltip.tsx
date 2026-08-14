@@ -24,8 +24,10 @@ export function GlassTooltip(props: GlassTooltipProps): ReactElement {
   const [coords, setCoords] = useState<{ left: number; top: number } | null>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /** After pointer leaves, keep the tip visible this long, then opacity-fade and unmount. */
-  const HIDE_DELAY_MS = 3000;
+  /** After pointer leaves, keep the tip visible this long, then opacity-fade. */
+  const HIDE_DELAY_MS = 1500;
+  /** Extra offset so the cursor (over the control) does not cover the tip. */
+  const POINTER_CLEARANCE_PX = 22;
 
   const clearHideTimer = useCallback(() => {
     if (hideTimerRef.current !== null) {
@@ -40,8 +42,7 @@ export function GlassTooltip(props: GlassTooltipProps): ReactElement {
       return;
     }
     const r = el.getBoundingClientRect();
-    const gap = 8;
-    setCoords({ left: r.left + r.width / 2, top: r.bottom + gap });
+    setCoords({ left: r.left + r.width / 2, top: r.bottom + POINTER_CLEARANCE_PX });
   }, []);
 
   const show = useCallback(() => {
@@ -92,6 +93,14 @@ export function GlassTooltip(props: GlassTooltipProps): ReactElement {
       window.removeEventListener("resize", syncPosition);
     };
   }, [open, label, syncPosition]);
+
+  useLayoutEffect(() => {
+    return () => {
+      if (hideTimerRef.current !== null) {
+        clearTimeout(hideTimerRef.current);
+      }
+    };
+  }, []);
 
   return (
     <>

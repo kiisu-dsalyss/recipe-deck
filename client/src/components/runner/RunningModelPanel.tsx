@@ -2,15 +2,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import type { DockerListRow, ModelCacheProgress } from "../../../../types/index.js";
 import { formatBytes } from "../../lib/formatBytes";
-import { IconForceKill, IconPlay, IconStopSign } from "../ui/glyphs.js";
+import { IconForceKill, IconPlay, IconPower, IconStopSign } from "../ui/glyphs.js";
 import { ToolbarIconButton } from "../ui/ToolbarIconButton.js";
-import { AutoStartRow } from "./AutoStartRow.js";
 import { ModelCacheBar } from "./ModelCacheBar.js";
 import { RunnerLogPane } from "./RunnerLogPane.js";
+import { RecipeStemSelect } from "./RecipeStemSelect.js";
 import { RunningModelDockerSection } from "./RunningModelDockerSection.js";
 import { RunningNowSection } from "./RunningNowSection.js";
 import type { RunningModelPanelProps } from "./RunningModelPanel.types.js";
-import { phaseClass, recipeBookGroups } from "./runningModelPanelUtils.js";
+import { phaseClass } from "./runningModelPanelUtils.js";
 import styles from "./RunningModelPanel.module.css";
 
 const CACHE_DONE_FLASH_MS = 2800;
@@ -225,6 +225,16 @@ export function RunningModelPanel(props: RunningModelPanelProps): ReactElement {
           <div className={styles.headTools}>
             <ToolbarIconButton
               variant="accent"
+              label="auto start at boot"
+              pressed={autoStartEnabled ?? true}
+              onClick={() => {
+                onToggleAutoStart?.();
+              }}
+            >
+              <IconPower />
+            </ToolbarIconButton>
+            <ToolbarIconButton
+              variant="accent"
               label="Run the selected recipe from its file on disk"
               onClick={onRun}
             >
@@ -245,10 +255,6 @@ export function RunningModelPanel(props: RunningModelPanelProps): ReactElement {
               <IconForceKill />
             </ToolbarIconButton>
           </div>
-          <AutoStartRow
-            autoStartEnabled={autoStartEnabled}
-            onToggleAutoStart={onToggleAutoStart}
-          />
         </div>
         <div className={styles.headMeta}>
           <span
@@ -314,26 +320,12 @@ export function RunningModelPanel(props: RunningModelPanelProps): ReactElement {
         <label className={styles.lbl} htmlFor="recipe-running-select">
           Recipe
         </label>
-        <select
+        <RecipeStemSelect
           id="recipe-running-select"
-          className={styles.select}
+          recipes={recipes}
           value={selectedStem}
-          onChange={(e) => {
-            onStemChange(e.target.value);
-          }}
-        >
-          <option value="">—</option>
-          {recipeBookGroups(recipes).map((g) => (
-            <optgroup key={g.label} label={g.label}>
-              {g.items.map((r) => (
-                <option key={r.stem} value={r.stem}>
-                  {r.broken ? "⚠ " : ""}
-                  {r.stem}
-                </option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
+          onChange={onStemChange}
+        />
       </div>
       <RunnerLogPane logText={logText} />
     </section>

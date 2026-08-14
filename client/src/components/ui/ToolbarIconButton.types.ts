@@ -8,6 +8,8 @@ export interface ToolbarIconButtonProps {
   variant?: ToolbarIconVariant;
   disabled?: boolean;
   busy?: boolean;
+  /** Toggle control: exposes aria-pressed. */
+  pressed?: boolean;
   onClick: () => void;
   children: ReactNode;
 }

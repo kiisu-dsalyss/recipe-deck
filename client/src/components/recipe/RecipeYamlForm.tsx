@@ -1,5 +1,6 @@
 import type { ReactElement } from "react";
 import { IconRefresh } from "../ui/glyphs.js";
+import { GlassSelect } from "../ui/GlassSelect.js";
 import { ToolbarIconButton } from "../ui/ToolbarIconButton.js";
 import { RecipeYamlFormDefaults } from "./RecipeYamlFormDefaults.js";
 import { RecipeYamlFormMods } from "./RecipeYamlFormMods.js";
@@ -75,22 +76,23 @@ export function RecipeYamlForm(props: RecipeYamlFormProps): ReactElement {
             container
           </label>
           <div className={styles.fieldContainerWrap}>
-            <select
+            <GlassSelect
               id="rf-container"
-              className={`${styles.fieldSelect} ${styles.fieldContainerSelect}`}
+              layout="grow"
               disabled={disabled}
               value={containerVal}
-              onChange={(e) => {
-                setScalar("container", e.target.value);
+              onChange={(v) => {
+                setScalar("container", v);
               }}
-            >
-              <option value="">—</option>
-              {containerSelectOptions.map((img) => (
-                <option key={img} value={img}>
-                  {img}
-                </option>
-              ))}
-            </select>
+              groups={[
+                {
+                  items: containerSelectOptions.map((img) => ({
+                    value: img,
+                    label: img,
+                  })),
+                },
+              ]}
+            />
             <div className={styles.fieldContainerRefresh}>
               <ToolbarIconButton
                 variant="muted"
@@ -110,8 +112,7 @@ export function RecipeYamlForm(props: RecipeYamlFormProps): ReactElement {
             </div>
           </div>
           <p className={styles.fieldHint}>
-            Native menu like <code className={styles.codeInline}>max_model_len</code> — Refresh reloads
-            images from Docker. The current tag stays in the list; anything else, edit Raw YAML.
+            Refresh reloads images from Docker. The current tag stays in the list; anything else, edit Raw YAML.
           </p>
           {containerImageOptionsErr ? (
             <p className={styles.fieldHint} role="status">

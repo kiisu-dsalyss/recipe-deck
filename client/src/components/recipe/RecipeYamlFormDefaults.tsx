@@ -1,4 +1,5 @@
 import type { ReactElement } from "react";
+import { GlassSelect } from "../ui/GlassSelect.js";
 import {
   buildArgsToLines,
   DEFAULTS_STRUCTURED_KEYS,
@@ -38,15 +39,15 @@ export function RecipeYamlFormDefaults(props: RecipeYamlFormDefaultsProps): Reac
             vLLM engine toggle. Anything else goes under other defaults.
           </p>
           <div className={styles.defaultsGrid}>
-            <label className={styles.selectWrap} htmlFor="rf-defaults-max-model-len">
-              <span className={styles.selectLabel}>max_model_len</span>
-              <select
+            <div className={styles.selectWrap}>
+              <span className={styles.selectLabel} id="rf-defaults-max-model-len-label">
+                max_model_len
+              </span>
+              <GlassSelect
                 id="rf-defaults-max-model-len"
-                className={styles.fieldSelect}
                 disabled={disabled}
                 value={maxModelLenCurrent === undefined ? "" : String(maxModelLenCurrent)}
-                onChange={(e) => {
-                  const v = e.target.value;
+                onChange={(v) => {
                   const next = { ...formDoc };
                   const d = getDefaultsObject(formDoc.defaults);
                   if (v === "") {
@@ -61,24 +62,25 @@ export function RecipeYamlFormDefaults(props: RecipeYamlFormDefaultsProps): Reac
                   }
                   patchDoc(next);
                 }}
-              >
-                <option value="">—</option>
-                {maxModelLenOpts.map((n) => (
-                  <option key={n} value={String(n)}>
-                    {n.toLocaleString()}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className={styles.selectWrap} htmlFor="rf-defaults-max-batched">
-              <span className={styles.selectLabel}>max_num_batched_tokens</span>
-              <select
+                groups={[
+                  {
+                    items: maxModelLenOpts.map((n) => ({
+                      value: String(n),
+                      label: n.toLocaleString(),
+                    })),
+                  },
+                ]}
+              />
+            </div>
+            <div className={styles.selectWrap}>
+              <span className={styles.selectLabel} id="rf-defaults-max-batched-label">
+                max_num_batched_tokens
+              </span>
+              <GlassSelect
                 id="rf-defaults-max-batched"
-                className={styles.fieldSelect}
                 disabled={disabled}
                 value={maxBatchedCurrent === undefined ? "" : String(maxBatchedCurrent)}
-                onChange={(e) => {
-                  const v = e.target.value;
+                onChange={(v) => {
                   const next = { ...formDoc };
                   const d = getDefaultsObject(formDoc.defaults);
                   if (v === "") {
@@ -93,15 +95,16 @@ export function RecipeYamlFormDefaults(props: RecipeYamlFormDefaultsProps): Reac
                   }
                   patchDoc(next);
                 }}
-              >
-                <option value="">—</option>
-                {maxBatchedOpts.map((n) => (
-                  <option key={n} value={String(n)}>
-                    {n.toLocaleString()}
-                  </option>
-                ))}
-              </select>
-            </label>
+                groups={[
+                  {
+                    items: maxBatchedOpts.map((n) => ({
+                      value: String(n),
+                      label: n.toLocaleString(),
+                    })),
+                  },
+                ]}
+              />
+            </div>
           </div>
           <label className={styles.toggleRow}>
             <input

@@ -6,13 +6,15 @@ import styles from "./ToolbarIconButton.module.css";
 export type { ToolbarIconButtonProps, ToolbarIconVariant } from "./ToolbarIconButton.types";
 
 export function ToolbarIconButton(props: ToolbarIconButtonProps): ReactElement {
-  const { label, variant = "muted", disabled, busy, onClick, children } = props;
+  const { label, variant = "muted", disabled, busy, pressed, onClick, children } = props;
   const cls =
-    variant === "accent"
-      ? styles.accent
-      : variant === "danger"
-        ? styles.danger
-        : styles.muted;
+    pressed === false
+      ? styles.unarmed
+      : variant === "accent"
+        ? styles.accent
+        : variant === "danger"
+          ? styles.danger
+          : styles.muted;
   return (
     <GlassTooltip label={label}>
       <button
@@ -20,6 +22,7 @@ export function ToolbarIconButton(props: ToolbarIconButtonProps): ReactElement {
         className={`${cls}${busy ? ` ${styles.busy}` : ""}`}
         disabled={disabled}
         aria-label={label}
+        aria-pressed={pressed}
         aria-busy={busy || undefined}
         onClick={onClick}
       >

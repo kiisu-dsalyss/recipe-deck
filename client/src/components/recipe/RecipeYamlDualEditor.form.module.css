@@ -24,7 +24,7 @@
   margin-bottom: var(--space-1);
 }
 
-/* Container: native <select class="fieldSelect"> + refresh — same menu chrome as max_model_len */
+/* Container: glass listbox + refresh */
 .fieldContainerWrap {
   display: flex;
   flex-direction: row;
@@ -34,10 +34,9 @@
   min-width: 0;
 }
 
-.fieldContainerSelect {
+.fieldContainerWrap > :first-child {
   flex: 1 1 auto;
   min-width: 0;
-  width: auto;
 }
 
 .fieldContainerRefresh {
@@ -66,28 +65,6 @@
   font-size: 0.85rem;
   box-sizing: border-box;
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-text) 5%, transparent);
-}
-
-.fieldSelect {
-  width: 100%;
-  padding: var(--space-2);
-  padding-right: 2.35rem;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--color-border);
-  background-color: var(--control-glass-bg);
-  backdrop-filter: blur(var(--control-glass-blur));
-  -webkit-backdrop-filter: blur(var(--control-glass-blur));
-  color: var(--color-text);
-  font-size: 0.85rem;
-  box-sizing: border-box;
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-text) 5%, transparent);
-  appearance: none;
-  -webkit-appearance: none;
-  cursor: pointer;
-  background-image: var(--field-dropdown-chevron);
-  background-repeat: no-repeat;
-  background-position: right 0.65rem center;
-  background-size: 0.9rem 0.9rem;
 }
 
 .fieldTextarea {
@@ -269,27 +246,4 @@
   font-size: 0.75rem;
   color: var(--color-danger);
   line-height: 1.4;
-}
-
-.btnGhost {
-  border: 1px solid var(--color-border);
-  background: var(--glass-panel-bg);
-  backdrop-filter: var(--glass-blur);
-  -webkit-backdrop-filter: var(--glass-blur);
-  color: var(--color-text);
-  border-radius: var(--radius-sm);
-  padding: 0.28rem 0.6rem;
-  font-size: 0.75rem;
-  cursor: pointer;
-  transition: border-color 0.12s ease, background 0.12s ease;
-}
-
-.btnGhost:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
-  background: color-mix(in srgb, var(--color-accent) 12%, var(--glass-panel-bg));
-}
-
-.btnGhost:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }

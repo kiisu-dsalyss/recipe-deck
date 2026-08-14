@@ -1,0 +1,163 @@
+.wrapFill {
+  width: 100%;
+  min-width: 0;
+  position: relative;
+}
+
+.wrapGrow {
+  flex: 1;
+  min-width: 140px;
+  position: relative;
+}
+
+.trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) 0.7rem var(--space-2) var(--space-2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--control-glass-bg);
+  backdrop-filter: blur(var(--control-glass-blur));
+  -webkit-backdrop-filter: blur(var(--control-glass-blur));
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  text-align: left;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-text) 5%, transparent);
+  cursor: pointer;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
+}
+
+.trigger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--color-accent) 45%, var(--color-border));
+}
+
+.trigger:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 65%, transparent);
+  outline-offset: 1px;
+}
+
+.trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.combo {
+  composes: trigger;
+  cursor: text;
+  padding-right: 0.35rem;
+}
+
+.combo:focus-within {
+  outline: 2px solid color-mix(in srgb, var(--color-accent) 65%, transparent);
+  outline-offset: 1px;
+}
+
+.comboInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  outline: none;
+}
+
+.comboChevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0.15rem;
+  border: none;
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+}
+
+.comboChevron:hover {
+  color: var(--color-text);
+}
+
+.triggerLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  flex-shrink: 0;
+  width: 0.9rem;
+  height: 0.9rem;
+  color: var(--color-muted);
+}
+
+.menu {
+  position: fixed;
+  z-index: 20000;
+  margin: 0;
+  padding: var(--space-1) 0;
+  max-height: min(22rem, 55vh);
+  overflow-y: auto;
+  overflow-x: hidden;
+  list-style: none;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: color-mix(in srgb, var(--color-surface) 78%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: var(--shadow-modal);
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 0.85rem;
+}
+
+.groupLabel {
+  padding: 0.45rem var(--space-3) 0.15rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--color-muted);
+}
+
+.option {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0.4rem var(--space-3);
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.optionNested {
+  padding-left: 1.85rem;
+}
+
+.option:hover,
+.optionActive {
+  background: color-mix(in srgb, var(--color-accent) 16%, transparent);
+}
+
+.optionSelected {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.optionDanger {
+  color: var(--color-danger);
+}
