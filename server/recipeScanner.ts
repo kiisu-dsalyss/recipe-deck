@@ -3,6 +3,7 @@ import type { Dirent } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { parseRecipeBroken } from "./recipeDeckMeta.js";
+import { probeRecipeYaml } from "./recipeProbe.js";
 import type { RecipeListItem } from "../types/index.js";
 
 /** Allowed path segment (filename or directory name under `recipes/`). */
@@ -62,6 +63,10 @@ export async function listRecipes(recipesDir: string): Promise<RecipeListItem[]>
       try {
         const c = await readRecipeFile(abs);
         item.broken = parseRecipeBroken(c);
+        const probe = probeRecipeYaml(c);
+        item.kind = probe.kind;
+        item.minNodes = probe.minNodes;
+        item.runtime = probe.runtime;
       } catch {
         item.broken = false;
       }

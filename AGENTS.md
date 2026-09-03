@@ -37,11 +37,14 @@ tests/          -- node:test unit tests (critical helpers only)
    - Provides `getFullState()` aggregating all data
 
 3. **SlotController** (`server/slotController.ts`): Process lifecycle manager.
-   - Spawns `run-recipe.py <recipe> --port <port>` as detached child process
+   - Spawns `run-recipe.py <recipe> --port <port>` as detached child (solo), or `sparkrun run <recipe.yaml>` (sparkrun-cluster)
+   - Cluster classification: `recipeProbe.classifyRecipeLaunch` — `min_nodes>1` OR `recipe_version 2/2.0` + `runtime`
+   - Cluster stop: best-effort `sparkrun stop <recipe>` (60s cap) then SIGTERM/SIGKILL parent
    - Reads stdout/stderr line-by-line into ring buffer + rolling files
    - Phase machine: `IDLE` -> `BOOTING` -> `HEALTHY` (via READY_REGEX) -> `ERROR`/`IDLE`
    - Graceful stop: SIGTERM -> grace period -> SIGKILL; Force: SIGKILL directly
    - Auto-detects spark-vllm-docker container reuse warning
+   - Crash auto-restart: on unexpected exit (not user stop), phase → `ERROR`, waits `AUTORESTART_COOLDOWN_MS` (default 30s), then relaunches the same recipe. Cancelled on intentional stop/kill or when `AUTORESTART_CURRENT_RECIPE=false`.
 
 4. **Routes** (`server/routes/registerRoutes.ts`):
    - `GET /api/state` — full state snapshot
@@ -53,8 +56,9 @@ tests/          -- node:test unit tests (critical helpers only)
    - `GET/POST /api/settings/app` — app settings (ports, regex, intervals)
    - `POST /api/service/restart` — systemd restart (production)
    - `GET/POST /api/docker/*` — container management
-   - `GET/POST /api/settings/auto-start` — read/write `.current-recipe` state
+   - `GET/POST /api/settings/auto-start` — read/write `.current-recipe` state (recipe stem + auto-start + auto-restart flags)
    - `POST /api/settings/auto-start/toggle` — toggle auto-start flag only
+   - `POST /api/settings/auto-restart/toggle` — toggle auto-restart flag only
 
 5. **WebSocket** (`server/wsHub.ts`):
    - On connect: sends full state snapshot + log snapshot
@@ -84,6 +88,9 @@ tests/          -- node:test unit tests (critical helpers only)
 - **Run counts**: Persisted in `LOG_DIR/recipe-run-counts.json`; recipes sorted by MRU.
 - **Health probe**: Regex match on log lines (default: `Uvicorn running|Application startup complete`). Timeout: 10 min.
 - **Auto-start**: `.current-recipe` file at app root stores which recipe to launch on boot. Controlled by checkbox in RunningModelPanel (checked by default) and Settings modal. Cleared on stop/kill.
+- **Auto-restart**: `AUTORESTART_CURRENT_RECIPE` (default `true`) in `.current-recipe` — when the runner exits unexpectedly, `SlotController` schedules a relaunch after `AUTORESTART_COOLDOWN_MS`. Cancelled on intentional stop/kill. Toggled via the ↻ icon next to autostart in RunningModelPanel or the Settings modal.
+- **Sparkrun cluster runner**: Recipes with `min_nodes>1` or `recipe_version 2/2.0` + `runtime` are launched via `sparkrun run <recipe>` (config: `SPARKRUN_BIN`, `SPARKRUN_EXTRA_ARGS`) and stopped via `sparkrun stop <recipe>`. Cluster recipes get a `[cluster×N]` badge in the runner select and honour the YAML `port:` for metrics scraping.
+- **Host CPU chip**: Header shows `CPU · N%` from `/proc/stat` alongside the Disk and GPU chips (Linux only; `n/a` on other platforms).
 
 ## Config file hierarchy
 
@@ -91,7 +98,7 @@ tests/          -- node:test unit tests (critical helpers only)
 |------|---------|
 | `.env` (repo root) | App runtime: ports, SPARK_VLLM_ROOT, LOG_DIR, etc. |
 | `$SPARK_VLLM_ROOT/.env` | spark-vllm-docker: HF_TOKEN, port knobs, Python env |
-| `.current-recipe` (repo root) | Auto-start state: `CURRENT_RECIPE=<stem>` + `AUTOSTART_CURRENT_RECIPE=true|false` |
+| `.current-recipe` (repo root) | Auto-start / auto-restart state: `CURRENT_RECIPE=<stem>` + `AUTOSTART_CURRENT_RECIPE=true|false` + `AUTORESTART_CURRENT_RECIPE=true|false` |
 | `operator.local.env` (gitignored) | Deploy-only: SSH credentials, remote path |
 
 ## Making changes

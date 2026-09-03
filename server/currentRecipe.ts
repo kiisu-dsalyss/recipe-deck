@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { AutoStartState } from "../types/api.js";
+import type { CurrentRecipeState } from "../types/api.js";
 
 /**
  * Resolve the repo root from this file's module path.
@@ -23,11 +23,17 @@ function repoRoot(): string {
 /** Absolute path to the app's .current-recipe state file. */
 const STATE_PATH = path.join(repoRoot(), ".current-recipe");
 
+function parseBoolValue(value: string): boolean {
+  return value === "true" || value === "1" || value.toLowerCase() === "yes";
+}
+
 /** Parse `.current-recipe` KEY=VAL text. Null if there is no stem. */
-export function parseCurrentRecipeText(raw: string): AutoStartState | null {
+export function parseCurrentRecipeText(raw: string): CurrentRecipeState | null {
   const lines = raw.split(/\r?\n/);
   let recipeStem: string | null = null;
   let autoStart = false;
+  /** Default: on (matches operator expectation — crash auto-restart is enabled unless explicitly disabled). */
+  let autoRestart = true;
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -46,8 +52,9 @@ export function parseCurrentRecipeText(raw: string): AutoStartState | null {
     if (key === "CURRENT_RECIPE" && value.length > 0) {
       recipeStem = value;
     } else if (key === "AUTOSTART_CURRENT_RECIPE") {
-      autoStart =
-        value === "true" || value === "1" || value.toLowerCase() === "yes";
+      autoStart = parseBoolValue(value);
+    } else if (key === "AUTORESTART_CURRENT_RECIPE") {
+      autoRestart = parseBoolValue(value);
     }
   }
 
@@ -55,14 +62,14 @@ export function parseCurrentRecipeText(raw: string): AutoStartState | null {
     return null;
   }
 
-  return { recipeStem, autoStart };
+  return { recipeStem, autoStart, autoRestart };
 }
 
 /**
  * Read the current recipe state from `.current-recipe`.
  * Returns null state if the file doesn't exist or is empty.
  */
-export async function readCurrentRecipeState(): Promise<AutoStartState | null> {
+export async function readCurrentRecipeState(): Promise<CurrentRecipeState | null> {
   let raw: string;
   try {
     raw = await fs.readFile(STATE_PATH, "utf8");
@@ -80,9 +87,14 @@ export async function readCurrentRecipeState(): Promise<AutoStartState | null> {
 export async function writeCurrentRecipeState(
   recipeStem: string,
   autoStart: boolean,
+  autoRestart: boolean,
 ): Promise<void> {
   const autoStr = autoStart ? "true" : "false";
-  const body = `CURRENT_RECIPE=${recipeStem}\nAUTOSTART_CURRENT_RECIPE=${autoStr}\n`;
+  const restartStr = autoRestart ? "true" : "false";
+  const body =
+    `CURRENT_RECIPE=${recipeStem}\n` +
+    `AUTOSTART_CURRENT_RECIPE=${autoStr}\n` +
+    `AUTORESTART_CURRENT_RECIPE=${restartStr}\n`;
   const tmp = `${STATE_PATH}.${process.pid}.${Date.now()}.tmp`;
   await fs.writeFile(tmp, body, "utf8");
   await fs.rename(tmp, STATE_PATH);
@@ -102,7 +114,7 @@ export async function clearCurrentRecipeState(): Promise<void> {
 
 /**
  * Update only the auto-start flag for the current recipe.
- * Keeps the existing recipe stem.
+ * Keeps the existing recipe stem and auto-restart flag.
  */
 export async function updateCurrentRecipeAutoStart(
   autoStart: boolean,
@@ -111,5 +123,27 @@ export async function updateCurrentRecipeAutoStart(
   if (!existing || !existing.recipeStem) {
     return;
   }
-  await writeCurrentRecipeState(existing.recipeStem, autoStart);
+  await writeCurrentRecipeState(
+    existing.recipeStem,
+    autoStart,
+    existing.autoRestart,
+  );
+}
+
+/**
+ * Update only the auto-restart flag for the current recipe.
+ * Keeps the existing recipe stem and auto-start flag.
+ */
+export async function updateCurrentRecipeAutoRestart(
+  autoRestart: boolean,
+): Promise<void> {
+  const existing = await readCurrentRecipeState();
+  if (!existing || !existing.recipeStem) {
+    return;
+  }
+  await writeCurrentRecipeState(
+    existing.recipeStem,
+    existing.autoStart,
+    autoRestart,
+  );
 }

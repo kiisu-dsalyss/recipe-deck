@@ -124,5 +124,12 @@ export function loadConfig(): AppConfig {
       return path.join(home, ".cache", "huggingface", "hub");
     })(),
     modelCachePollIntervalMs: int("MODEL_CACHE_POLL_MS", 2000),
+    sparkrunBin: process.env.SPARKRUN_BIN?.trim() || "sparkrun",
+    sparkrunExtraArgs: (() => {
+      const raw = process.env.SPARKRUN_EXTRA_ARGS?.trim();
+      if (!raw) return [];
+      return raw.split(/\s+/).filter(Boolean);
+    })(),
+    autoRestartCooldownMs: int("AUTORESTART_COOLDOWN_MS", 30_000),
   };
 }

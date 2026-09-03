@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AppSettingsPayload, AppSettingsSaveBody, FullStatePayload } from "../api/client";
+import type {
+  AppSettingsPayload,
+  AppSettingsSaveBody,
+  CurrentRecipeState,
+  FullStatePayload,
+} from "../api/client";
 import { runnerPhase } from "../lib/runnerState";
 import * as api from "../api/client";
 import type { UseRecipeDeckResult } from "./useRecipeDeck.types";
@@ -49,10 +54,7 @@ export function useRecipeDeck(): UseRecipeDeckResult {
   const [error, setError] = useState<string | null>(null);
   const [hfToken, setHfToken] = useState<string | undefined>(undefined);
   const [appSettings, setAppSettings] = useState<AppSettingsPayload | null>(null);
-  const [autoStart, setAutoStart] = useState<{
-    recipeStem: string | null;
-    autoStart: boolean;
-  } | null>(null);
+  const [autoStart, setAutoStart] = useState<CurrentRecipeState | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   /** When true, the next socket `close` is intentional (e.g. tab visible) — do not schedule backoff reconnect. */
   const skipCloseReconnectRef = useRef(false);
@@ -91,7 +93,7 @@ export function useRecipeDeck(): UseRecipeDeckResult {
       const a = await api.fetchAutoStart();
       setAutoStart(a);
     } catch {
-      setAutoStart({ recipeStem: null, autoStart: false });
+      setAutoStart({ recipeStem: null, autoStart: false, autoRestart: true });
     }
   }, []);
 
@@ -280,26 +282,39 @@ export function useRecipeDeck(): UseRecipeDeckResult {
     syncSimpleUiLocalStorage(s);
   }, []);
 
-  /** Save auto-start config: which recipe stem and whether it should auto-start. */
+  /** Save auto-start config: which recipe stem, auto-start flag, and auto-restart flag. */
   const saveAutoStart = useCallback(
-    async (stem: string, enabled: boolean) => {
-      await api.saveAutoStart(stem, enabled);
-      setAutoStart({ recipeStem: stem, autoStart: enabled });
+    async (stem: string, autoStartEnabled: boolean, autoRestartEnabled: boolean) => {
+      await api.saveAutoStart(stem, autoStartEnabled, autoRestartEnabled);
+      setAutoStart({
+        recipeStem: stem,
+        autoStart: autoStartEnabled,
+        autoRestart: autoRestartEnabled,
+      });
       await refreshStateOnly();
     },
     [refreshStateOnly],
   );
 
   /** Toggle auto-start flag for the current recipe. */
-  const toggleAutoStart = useCallback(
-    async (enabled: boolean) => {
-      await api.toggleAutoStart(enabled);
-      setAutoStart((prev) =>
-        prev ? { recipeStem: prev.recipeStem, autoStart: enabled } : prev,
-      );
-    },
-    [],
-  );
+  const toggleAutoStart = useCallback(async (enabled: boolean) => {
+    await api.toggleAutoStart(enabled);
+    setAutoStart((prev) =>
+      prev
+        ? { ...prev, autoStart: enabled }
+        : { recipeStem: null, autoStart: enabled, autoRestart: true },
+    );
+  }, []);
+
+  /** Toggle auto-restart flag for the current recipe. */
+  const toggleAutoRestart = useCallback(async (enabled: boolean) => {
+    await api.toggleAutoRestart(enabled);
+    setAutoStart((prev) =>
+      prev
+        ? { ...prev, autoRestart: enabled }
+        : { recipeStem: null, autoStart: false, autoRestart: enabled },
+    );
+  }, []);
 
   const simpleUi = useMemo(() => {
     const e = appSettings?.effective;
@@ -335,6 +350,7 @@ export function useRecipeDeck(): UseRecipeDeckResult {
     saveAppSettings,
     saveAutoStart,
     toggleAutoStart,
+    toggleAutoRestart,
     clearRunLog,
   };
 }

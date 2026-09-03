@@ -7,14 +7,15 @@ import {
   type AppSettingsSaveBody,
   type FullStatePayload,
   type HfTokenPayload,
-  type AutoStartState,
+  type CurrentRecipeState,
 } from "../../../types/index.js";
 
 export type {
   AppSettingsEffective,
   AppSettingsPayload,
   AppSettingsSaveBody,
-  AutoStartState as AutoStartApiResponse,
+  CurrentRecipeState as AutoStartApiResponse,
+  CurrentRecipeState,
   FullStatePayload,
   HfTokenPayload,
 } from "../../../types/index.js";
@@ -32,6 +33,8 @@ export async function postRun(body: {
   useBuffer?: boolean;
   yamlBuffer?: string;
   recipeOverrides?: RecipeRunOverrides;
+  autoStart?: boolean;
+  autoRestart?: boolean;
 }): Promise<void> {
   const r = await fetch("/api/run", {
     method: "POST",
@@ -204,22 +207,23 @@ export async function postRestartRecipeDeck(): Promise<void> {
   }
 }
 
-/** Read auto-start state. */
-export async function fetchAutoStart(): Promise<AutoStartState> {
+/** Read auto-start / auto-restart state. */
+export async function fetchAutoStart(): Promise<CurrentRecipeState> {
   const r = await fetch("/api/settings/auto-start");
   if (!r.ok) throw new Error(`auto-start fetch ${r.status}`);
-  return r.json() as Promise<AutoStartState>;
+  return r.json() as Promise<CurrentRecipeState>;
 }
 
-/** Save auto-start state (recipe stem + enabled flag). */
+/** Save auto-start state (recipe stem + auto-start + auto-restart flags). */
 export async function saveAutoStart(
   stem: string,
   autoStart: boolean,
+  autoRestart: boolean,
 ): Promise<void> {
   const r = await fetch("/api/settings/auto-start", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ stem, autoStart }),
+    body: JSON.stringify({ stem, autoStart, autoRestart }),
   });
   if (!r.ok) {
     const j = (await r.json().catch(() => ({}))) as { error?: string };
@@ -237,5 +241,18 @@ export async function toggleAutoStart(autoStart: boolean): Promise<void> {
   if (!r.ok) {
     const j = (await r.json().catch(() => ({}))) as { error?: string };
     throw new Error(j.error ?? `auto-start toggle ${r.status}`);
+  }
+}
+
+/** Toggle only the auto-restart flag for the current recipe. */
+export async function toggleAutoRestart(autoRestart: boolean): Promise<void> {
+  const r = await fetch("/api/settings/auto-restart/toggle", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ autoRestart }),
+  });
+  if (!r.ok) {
+    const j = (await r.json().catch(() => ({}))) as { error?: string };
+    throw new Error(j.error ?? `auto-restart toggle ${r.status}`);
   }
 }

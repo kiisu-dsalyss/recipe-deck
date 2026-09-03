@@ -7,7 +7,11 @@ import type { useRecipeDeck } from "../hooks/useRecipeDeck";
 
 type Deck = ReturnType<typeof useRecipeDeck>;
 
-export function useAppRecipeEditor(deck: Deck, autoStartEnabled: boolean) {
+export function useAppRecipeEditor(
+  deck: Deck,
+  autoStartEnabled: boolean,
+  autoRestartEnabled: boolean,
+) {
   const p = deck.payload;
   const [stem, setStem] = useState("");
   const [yaml, setYaml] = useState("");
@@ -108,12 +112,13 @@ export function useAppRecipeEditor(deck: Deck, autoStartEnabled: boolean) {
         solo: true,
         useBuffer: false,
         autoStart: autoStartEnabled,
+        autoRestart: autoRestartEnabled,
       });
     } catch (e) {
       const err = e as Error & { code?: string };
       window.alert(err.message ?? String(e));
     }
-  }, [deck, stem, autoStartEnabled]);
+  }, [deck, stem, autoStartEnabled, autoRestartEnabled]);
 
   const handleRunBuffer = useCallback(async () => {
     if (!stem.trim()) return;
@@ -125,12 +130,13 @@ export function useAppRecipeEditor(deck: Deck, autoStartEnabled: boolean) {
         solo: true,
         useBuffer: true,
         yamlBuffer: yaml,
+        autoRestart: autoRestartEnabled,
       });
     } catch (e) {
       const err = e as Error & { code?: string };
       window.alert(err.message ?? String(e));
     }
-  }, [stem, deck, yaml]);
+  }, [stem, deck, yaml, autoRestartEnabled]);
 
   const handleSaveFile = useCallback(async () => {
     if (!stem.trim()) return;

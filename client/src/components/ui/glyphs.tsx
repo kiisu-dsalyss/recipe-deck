@@ -91,6 +91,18 @@ export function IconPower(): ReactElement {
   );
 }
 
+/** Circular arrow — auto-restart on unexpected exit */
+export function IconAutoRestart(): ReactElement {
+  return (
+    <svg {...common}>
+      <path d="M3 12a9 9 0 0 1 15.5-6.36" />
+      <path d="M21 3v5h-5" />
+      <path d="M21 12a9 9 0 0 1-15.5 6.36" />
+      <path d="M3 21v-5h5" />
+    </svg>
+  );
+}
+
 /** Brain — hub cache / model load progress (pulsing in Running Model) */
 export function IconBrain(): ReactElement {
   return (

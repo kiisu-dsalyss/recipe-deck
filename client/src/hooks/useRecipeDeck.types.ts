@@ -1,4 +1,9 @@
-import type { AppSettingsPayload, AppSettingsSaveBody, FullStatePayload } from "../api/client";
+import type {
+  AppSettingsPayload,
+  AppSettingsSaveBody,
+  CurrentRecipeState,
+  FullStatePayload,
+} from "../api/client";
 import type * as api from "../api/client";
 
 export interface DeckUiState {
@@ -12,13 +17,15 @@ export interface DeckUiState {
   appSettings: AppSettingsPayload | null;
   /** True = hide dots + header aurora (from server + localStorage fallback). */
   simpleUi: boolean;
-  /** Auto-start state: recipe stem and enabled flag. `null` until first fetch. */
-  autoStart: { recipeStem: string | null; autoStart: boolean } | null;
+  /**
+   * Auto-start / auto-restart state from `.current-recipe`. `null` until first fetch.
+   */
+  autoStart: CurrentRecipeState | null;
 }
 
 export type RecipeDeckActions = {
   refresh: () => Promise<void>;
-  run: (args: Parameters<typeof api.postRun>[0] & { autoStart?: boolean }) => Promise<void>;
+  run: (args: Parameters<typeof api.postRun>[0]) => Promise<void>;
   stop: () => Promise<void>;
   forceKill: () => Promise<void>;
   saveRecipe: (stem: string, content: string) => Promise<void>;
@@ -26,8 +33,13 @@ export type RecipeDeckActions = {
   deleteRecipe: (stem: string) => Promise<void>;
   saveHf: (token: string) => Promise<void>;
   saveAppSettings: (body: AppSettingsSaveBody) => Promise<void>;
-  saveAutoStart: (stem: string, enabled: boolean) => Promise<void>;
+  saveAutoStart: (
+    stem: string,
+    autoStart: boolean,
+    autoRestart: boolean,
+  ) => Promise<void>;
   toggleAutoStart: (enabled: boolean) => Promise<void>;
+  toggleAutoRestart: (enabled: boolean) => Promise<void>;
   clearRunLog: () => void;
 };
 

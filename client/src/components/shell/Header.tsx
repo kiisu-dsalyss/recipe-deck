@@ -20,6 +20,7 @@ export function Header(props: HeaderProps): ReactElement {
     onOpenHelp,
   } = props;
   const disk = metrics?.disk;
+  const cpu = metrics?.cpu;
   const gpu = metrics?.gpu;
   return (
     <header className={styles.header}>
@@ -69,6 +70,13 @@ export function Header(props: HeaderProps): ReactElement {
           </span>
         ) : (
           <span className={styles.chipMuted}>Disk —</span>
+        )}
+        {cpu && cpu.utilizationPct != null ? (
+          <span className={styles.chip} title="Host CPU utilization (/proc/stat)">
+            CPU · {cpu.utilizationPct}%
+          </span>
+        ) : (
+          <span className={styles.chipMuted}>CPU n/a</span>
         )}
         {gpu ? (
           <span className={styles.chip}>

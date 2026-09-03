@@ -46,7 +46,9 @@ The app is a **single Node.js process** that serves a **React (Vite)** front end
 - Live **log** view with bounded memory and optional rolling files.
 - Edit **recipe YAML** from the UI; optional **HF_TOKEN** merge when the recipe omits it.
 - **Settings** for ports, Python path, ready-line regex, timeouts, and polling—written to the same env files the stack uses; restart Recipe Deck to apply.
-- Best-effort **metrics**: disk space under `SPARK_VLLM_ROOT`, `nvidia-smi`, vLLM `/metrics` (tok/s), OpenAI-compatible `/v1/models`, and optional **`docker ps`** to match image/container to the listening port.
+- Best-effort **metrics**: disk space under `SPARK_VLLM_ROOT`, `nvidia-smi`, **host CPU utilization** (`/proc/stat`, Linux), vLLM `/metrics` (tok/s), OpenAI-compatible `/v1/models`, and optional **`docker ps`** to match image/container to the listening port.
+- **Auto-start** the last recipe on boot (`.current-recipe`), and **auto-restart** on unexpected exit with a 30 s cooldown (both toggles surface as icons next to Play in the runner panel; `AUTORESTART_COOLDOWN_MS` tunable).
+- **Sparkrun cluster runner:** recipes with `min_nodes>1` or `recipe_version 2/2.0` + `runtime` are launched via `SPARKRUN_BIN run <recipe.yaml>` and stopped via `sparkrun stop`; solo recipes still use `run-recipe.py`. The runner select shows a `[cluster×N]` badge for cluster recipes.
 - **UI:** Frosted **glass** panels; **floating dots** background (focal point follows the pointer over the page, smooth drift when the pointer is not over the page; **`prefers-reduced-motion`** uses a static focal point). **Simple UI** in Settings disables the dots and header aurora.
 
 ---
