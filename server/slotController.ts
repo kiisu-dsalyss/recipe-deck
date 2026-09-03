@@ -366,7 +366,11 @@ export class SlotController {
       mode,
       graceMs: this.cfg.bootSigtermGraceMs,
       wasCluster: this.launchKind === "sparkrun-cluster",
-      clusterRecipeAbs: this.lastRunOpts?.recipeAbsPath ?? this.recipePath,
+      // Prefer the path actually passed to `sparkrun run` (often a
+      // `.recipe-deck-tmp/run-*.yaml` copy). Stopping the source stem path
+      // leaves the live job's containers orphaned.
+      clusterRecipeAbs:
+        this.recipePath || this.lastRunOpts?.recipeAbsPath || null,
       runSparkrunStop: (a) => this.runSparkrunStop(a),
       markIntentionalStop: () => {
         this.intentionalStop = true;
