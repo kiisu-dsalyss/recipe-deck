@@ -36,6 +36,24 @@ export interface MetricsPayload {
   cpu: CpuMetrics | null;
   gpu: GpuMetrics | null;
   slots: Record<SlotId, { tokPerSec: number | null }>;
+  /** Per-cluster-host CPU/GPU (head + workers). Absent/null when cluster metrics are off or single-host. */
+  hosts?: HostAccelMetrics[] | null;
+}
+
+/** CPU/GPU metrics for one cluster host (local head node or remote worker via SSH). */
+export interface HostAccelMetrics {
+  /** Host identifier as configured (IP or hostname). */
+  id: string;
+  /** Short UI label, e.g. `.100` for an IPv4 or hostname segment. */
+  label: string;
+  /** True when sampled locally (not via SSH). */
+  local: boolean;
+  cpu: CpuMetrics | null;
+  gpu: GpuMetrics | null;
+  /** ISO timestamp of last successful sample, or null. */
+  updatedAt: string | null;
+  /** Last error string when the sample failed. */
+  error?: string | null;
 }
 
 export interface CpuMetrics {

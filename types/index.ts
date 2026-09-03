@@ -13,6 +13,7 @@ export type {
   MetricsPayload,
   CpuMetrics,
   GpuMetrics,
+  HostAccelMetrics,
   RecipeRunOverrides,
   HfTokenStatus,
   ModelCacheProgress,

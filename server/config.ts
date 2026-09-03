@@ -131,5 +131,14 @@ export function loadConfig(): AppConfig {
       return raw.split(/\s+/).filter(Boolean);
     })(),
     autoRestartCooldownMs: int("AUTORESTART_COOLDOWN_MS", 30_000),
+    sparkrunConfigDir: (() => {
+      const raw = process.env.SPARKRUN_CONFIG_DIR?.trim();
+      if (raw) return path.resolve(raw);
+      return path.join(process.env.HOME ?? process.cwd(), ".config", "sparkrun");
+    })(),
+    sparkrunCluster: process.env.SPARKRUN_CLUSTER?.trim() || undefined,
+    clusterMetricsEnabled: bool("CLUSTER_METRICS_ENABLED", true),
+    clusterMetricsSshUser: process.env.CLUSTER_METRICS_SSH_USER?.trim() || undefined,
+    clusterMetricsSshTimeoutMs: int("CLUSTER_METRICS_SSH_TIMEOUT_MS", 4000),
   };
 }

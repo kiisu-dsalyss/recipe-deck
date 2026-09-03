@@ -1,12 +1,68 @@
 import type { ReactElement } from "react";
 import { formatListenDisplay } from "../../../../shared/formatListenDisplay";
 import { formatBytes } from "../../lib/formatBytes";
+import type { HostAccelMetrics } from "../../../../types/index.js";
 import type { HeaderProps } from "./Header.types";
 import { HeaderCacheStrip } from "./HeaderCacheStrip";
 import { IconGear, IconMoon, IconSun } from "./HeaderIcons";
 import styles from "./Header.module.css";
 
 const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? "0.0.0";
+
+function RemoteHostChips({
+  hosts,
+}: {
+  hosts: HostAccelMetrics[];
+}): ReactElement {
+  const remotes = hosts.filter((h) => !h.local);
+  return (
+    <>
+      {remotes.map((h) => (
+        <RemoteHostChipPair key={h.id} host={h} />
+      ))}
+    </>
+  );
+}
+
+function RemoteHostChipPair({ host }: { host: HostAccelMetrics }): ReactElement {
+  const errorTitle = host.error ?? "SSH sample failed";
+  const cpuChip =
+    host.cpu && host.cpu.utilizationPct != null ? (
+      <span
+        className={styles.chip}
+        title={`CPU · ${host.id} (/proc/stat via SSH)`}
+      >
+        CPU {host.label} · {host.cpu.utilizationPct}%
+      </span>
+    ) : (
+      <span className={styles.chipMuted} title={`CPU · ${host.id}: ${errorTitle}`}>
+        CPU {host.label} n/a
+      </span>
+    );
+
+  const gpuChip =
+    host.gpu ? (
+      <span className={styles.chip} title={`GPU · ${host.id} (nvidia-smi via SSH)`}>
+        GPU {host.label}
+        {host.gpu.gpuCount != null && host.gpu.gpuCount > 1
+          ? ` ×${host.gpu.gpuCount}`
+          : ""}
+        {host.gpu.temperatureC != null ? ` ${host.gpu.temperatureC}°C` : ""}
+        {host.gpu.utilizationPct != null ? ` · ${host.gpu.utilizationPct}%` : ""}
+      </span>
+    ) : (
+      <span className={styles.chipMuted} title={`GPU · ${host.id}: ${errorTitle}`}>
+        GPU {host.label} n/a
+      </span>
+    );
+
+  return (
+    <>
+      {cpuChip}
+      {gpuChip}
+    </>
+  );
+}
 
 export function Header(props: HeaderProps): ReactElement {
   const {
@@ -90,6 +146,9 @@ export function Header(props: HeaderProps): ReactElement {
           </span>
         ) : (
           <span className={styles.chipMuted}>GPU n/a</span>
+        )}
+        {metrics?.hosts && metrics.hosts.length > 1 && (
+          <RemoteHostChips hosts={metrics.hosts} />
         )}
       </div>
     </header>

@@ -21,11 +21,14 @@ import { findDockerContainerForHostPort } from "./metrics/dockerPs.js";
 import { parseVllmLiveStatsFromPrometheus } from "./metrics/vllmLiveStats.js";
 import { fetchServedModelIds } from "./metrics/vllmModels.js";
 import { TokenRateTracker } from "./metrics/vllmTokens.js";
+import { loadClusterHosts } from "./metrics/clusterHosts.js";
+import { buildClusterHostMetrics } from "./metrics/clusterMetrics.js";
 import {
   RUNNER_API_SLOT,
   type DockerContainerInfo,
   type RecipeListItem,
   type MetricsPayload,
+  type HostAccelMetrics,
 } from "../types/index.js";
 import { tryAutoStart } from "./deckAutoStart.js";
 import { pollBootingModelCache } from "./deckModelCache.js";
@@ -44,6 +47,7 @@ export class DeckService {
   private diskCache: MetricsPayload["disk"] = null;
   private cpuCache: MetricsPayload["cpu"] = null;
   private gpuCache: MetricsPayload["gpu"] = null;
+  private hostsCache: HostAccelMetrics[] | null = null;
   private diskTimer: ReturnType<typeof setInterval> | null = null;
   private gpuTimer: ReturnType<typeof setInterval> | null = null;
   private vllmTimer: ReturnType<typeof setInterval> | null = null;
@@ -154,6 +158,23 @@ export class DeckService {
     ]);
     this.gpuCache = gpu;
     this.cpuCache = cpu;
+
+    if (!this.cfg.clusterMetricsEnabled) {
+      this.hostsCache = null;
+      return;
+    }
+    const info = await loadClusterHosts(
+      this.cfg.sparkrunConfigDir,
+      this.cfg.sparkrunCluster,
+    );
+    if (!info || info.hosts.length < 2) {
+      this.hostsCache = null;
+      return;
+    }
+    this.hostsCache = await buildClusterHostMetrics(info.hosts, info.user, {
+      sshUser: this.cfg.clusterMetricsSshUser,
+      sshTimeoutMs: this.cfg.clusterMetricsSshTimeoutMs,
+    });
   }
 
   private async refreshVllmRates(): Promise<void> {
@@ -293,6 +314,7 @@ export class DeckService {
       disk: this.diskCache,
       cpu: this.cpuCache,
       gpu: this.gpuCache,
+      hosts: this.hostsCache,
       slots: {
         [RUNNER_API_SLOT]: { tokPerSec: this.runner.tokPerSec },
       } as MetricsPayload["slots"],

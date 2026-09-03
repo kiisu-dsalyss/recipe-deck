@@ -63,6 +63,7 @@ Stop / force-kill always tears down the managed child. For cluster runs, Recipe 
   - `nvidia-smi` GPU snapshot
   - vLLM `/metrics` (tok/s) and OpenAI-compatible `/v1/models` on the **recipe listen port**
   - Optional **`docker ps`** match of image/container to that port
+  - **Cluster host metrics:** when `CLUSTER_METRICS_ENABLED` is true (default) and sparkrun reports multiple hosts, the header also shows compact `CPU .100 · N%` / `GPU .100 T°C · N%` chips for each non-local worker, sampled via passwordless SSH using the same mesh sparkrun uses.
 - **Auto-start** the last recipe when the Deck process starts (`.current-recipe`).
 - **Auto-restart** on unexpected exit: stay in `ERROR`, show a **30 s circular countdown**, then relaunch the same stem (cancelled on intentional stop/kill). Toolbar glyphs sit beside Play.
 - **Sparkrun cluster runner** for multi-node recipes (see [Solo vs sparkrun-cluster](#solo-vs-sparkrun-cluster)).
@@ -159,6 +160,20 @@ PATH=/home/YOU/.local/bin:/usr/local/bin:/usr/bin:/bin
 ```
 
 in the Deck **`.env`** referenced by **`EnvironmentFile=`**, then restart the unit.
+
+### Cluster host metrics
+
+When `CLUSTER_METRICS_ENABLED=true` (the default) and the sparkrun cluster has two or more hosts, Recipe Deck reads the active cluster YAML from `$SPARKRUN_CONFIG_DIR/clusters/<name>.yaml` (or `.default` pointer) on every metrics poll and SSH-samples each worker node using the same passwordless mesh sparkrun requires. The header strip then shows compact `CPU .N · X%` and `GPU .N T°C · X%` chips alongside the head-node Disk/CPU/GPU chips.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `SPARKRUN_CONFIG_DIR` | `~/.config/sparkrun` | Root of the sparkrun config tree |
+| `SPARKRUN_CLUSTER` | (read `.default` file) | Explicit cluster name; skips `.default` lookup |
+| `CLUSTER_METRICS_ENABLED` | `true` | Set `false` to disable SSH host sampling entirely |
+| `CLUSTER_METRICS_SSH_USER` | (from cluster YAML `user:`) | SSH user override for remote sampling |
+| `CLUSTER_METRICS_SSH_TIMEOUT_MS` | `4000` | Per-host SSH connect timeout |
+
+Sampling uses `BatchMode=yes StrictHostKeyChecking=accept-new` — the head node's `~/.ssh/known_hosts` is updated on first contact. Failed hosts show a muted `n/a` chip; they do not block the metrics refresh for other hosts.
 
 ---
 
