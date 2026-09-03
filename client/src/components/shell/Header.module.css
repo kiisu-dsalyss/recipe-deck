@@ -211,3 +211,87 @@
   background: var(--color-bg);
   color: var(--color-muted);
 }
+
+.accelStack {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 2px 4px;
+  max-height: 2rem;
+  align-self: center;
+  font-size: 0.4rem;
+  line-height: 1;
+  color: var(--color-text);
+}
+
+.accelRow {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.accelName {
+  flex-shrink: 0;
+  font-weight: 600;
+}
+
+.accelTemp {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.utilBar {
+  width: 2.25rem;
+  height: 3px;
+  border-radius: 1px;
+  background: var(--color-border);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.utilBarFill {
+  height: 100%;
+  background: var(--color-accent);
+  transition: width 0.3s ease;
+}
+
+.diskStat,
+.diskStatMuted {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.diskStatMuted {
+  color: var(--color-muted);
+}
+
+.usedRing {
+  display: block;
+  flex-shrink: 0;
+}
+
+.usedRingTrack {
+  stroke: var(--color-muted);
+  opacity: 0.5;
+}
+
+.usedRingFill {
+  stroke: var(--color-accent);
+  transition: stroke-dashoffset 0.3s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .utilBarFill,
+  .usedRingFill {
+    transition: none;
+  }
+}
