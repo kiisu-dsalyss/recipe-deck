@@ -1,6 +1,7 @@
 import type {
   AppSettingsPayload,
   AppSettingsSaveBody,
+  CurrentRecipeState,
 } from "../../api/client";
 import type { RecipeDeckPathsPayload } from "../../../../types/index.js";
 
@@ -18,7 +19,11 @@ export interface AppSettingsPanelProps {
   onSaveHf: () => void | Promise<void>;
   hfTokenLoading: boolean;
   onRefreshRecipes: () => void | Promise<void>;
-  /** Current auto-start state from server. */
-  autoStartState: { recipeStem: string | null; autoStart: boolean } | null;
-  onAutoStartChange: (stem: string, enabled: boolean) => Promise<void>;
+  /** Current auto-start / auto-restart state from server. */
+  autoStartState: CurrentRecipeState | null;
+  onAutoStartChange: (
+    stem: string,
+    autoStart: boolean,
+    autoRestart: boolean,
+  ) => Promise<void>;
 }

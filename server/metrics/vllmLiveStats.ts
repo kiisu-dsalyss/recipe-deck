@@ -5,7 +5,9 @@
  * `vllm:gpu_prefix_cache_hit_rate` gauges.
  *
  * V1 engine (current main): `vllm:kv_cache_usage_perc` (replaces GPU gauge name),
- * prefix cache as counters `vllm:prefix_cache_hits` / `vllm:prefix_cache_queries` (rate = hits/queries).
+ * prefix cache as counters `vllm:prefix_cache_hits[_total]` /
+ * `vllm:prefix_cache_queries[_total]` (rate = hits/queries). Newer Prometheus
+ * clients emit the `_total` suffix; older builds omit it.
  */
 import type { VllmLiveStats } from "../../types/index.js";
 import { parseTimeToFirstTokenP95Seconds } from "./vllmHistogram.js";
@@ -83,11 +85,16 @@ function sumMetricSamples(text: string, fragment: string): number | null {
 
 /**
  * V1 exposes prefix hit rate via counters, not a gauge. Use hits/queries across all engines.
- * Fragment must not match `external_prefix_cache_*` (e.g. `:prefix_cache_hits{` is unique).
+ * Prefer `_total{` (Prom client counter convention), then bare `{` for older names.
+ * Fragments must not match `external_prefix_cache_*`.
  */
 function prefixHitRateFromV1Counters(text: string): number | null {
-  const hits = sumMetricSamples(text, ":prefix_cache_hits{");
-  const queries = sumMetricSamples(text, ":prefix_cache_queries{");
+  const hits =
+    sumMetricSamples(text, ":prefix_cache_hits_total{") ??
+    sumMetricSamples(text, ":prefix_cache_hits{");
+  const queries =
+    sumMetricSamples(text, ":prefix_cache_queries_total{") ??
+    sumMetricSamples(text, ":prefix_cache_queries{");
   if (hits === null || queries === null || queries <= 0) {
     return null;
   }

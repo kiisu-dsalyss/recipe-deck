@@ -12,16 +12,23 @@ import {
 } from "./recipeUsage.js";
 import { SlotController, type LogBroadcast, type StateBroadcast } from "./slotController.js";
 import { ensureDockerImageAliases } from "./dockerImageAliases.js";
-import { diskUsageForPath, nvidiaGpuSnapshot } from "./metrics/hostMetrics.js";
+import {
+  diskUsageForPath,
+  hostCpuSnapshot,
+  nvidiaGpuSnapshot,
+} from "./metrics/hostMetrics.js";
 import { findDockerContainerForHostPort } from "./metrics/dockerPs.js";
 import { parseVllmLiveStatsFromPrometheus } from "./metrics/vllmLiveStats.js";
 import { fetchServedModelIds } from "./metrics/vllmModels.js";
 import { TokenRateTracker } from "./metrics/vllmTokens.js";
+import { loadClusterHosts } from "./metrics/clusterHosts.js";
+import { buildClusterHostMetrics } from "./metrics/clusterMetrics.js";
 import {
   RUNNER_API_SLOT,
   type DockerContainerInfo,
   type RecipeListItem,
   type MetricsPayload,
+  type HostAccelMetrics,
 } from "../types/index.js";
 import { tryAutoStart } from "./deckAutoStart.js";
 import { pollBootingModelCache } from "./deckModelCache.js";
@@ -38,7 +45,9 @@ export class DeckService {
   private recipeRunCounts: Record<string, number> = {};
   private recipes: RecipeListItem[] = [];
   private diskCache: MetricsPayload["disk"] = null;
+  private cpuCache: MetricsPayload["cpu"] = null;
   private gpuCache: MetricsPayload["gpu"] = null;
+  private hostsCache: HostAccelMetrics[] | null = null;
   private diskTimer: ReturnType<typeof setInterval> | null = null;
   private gpuTimer: ReturnType<typeof setInterval> | null = null;
   private vllmTimer: ReturnType<typeof setInterval> | null = null;
@@ -101,9 +110,9 @@ export class DeckService {
     void this.refreshDisk();
 
     this.gpuTimer = setInterval(() => {
-      void this.refreshGpu();
+      void this.refreshHostAccel();
     }, this.cfg.gpuStatsIntervalMs);
-    void this.refreshGpu();
+    void this.refreshHostAccel();
 
     this.vllmTimer = setInterval(() => {
       void this.refreshVllmRates();
@@ -142,8 +151,30 @@ export class DeckService {
       : null;
   }
 
-  private async refreshGpu(): Promise<void> {
-    this.gpuCache = await nvidiaGpuSnapshot();
+  private async refreshHostAccel(): Promise<void> {
+    const [gpu, cpu] = await Promise.all([
+      nvidiaGpuSnapshot(),
+      hostCpuSnapshot(),
+    ]);
+    this.gpuCache = gpu;
+    this.cpuCache = cpu;
+
+    if (!this.cfg.clusterMetricsEnabled) {
+      this.hostsCache = null;
+      return;
+    }
+    const info = await loadClusterHosts(
+      this.cfg.sparkrunConfigDir,
+      this.cfg.sparkrunCluster,
+    );
+    if (!info || info.hosts.length < 2) {
+      this.hostsCache = null;
+      return;
+    }
+    this.hostsCache = await buildClusterHostMetrics(info.hosts, info.user, {
+      sshUser: this.cfg.clusterMetricsSshUser,
+      sshTimeoutMs: this.cfg.clusterMetricsSshTimeoutMs,
+    });
   }
 
   private async refreshVllmRates(): Promise<void> {
@@ -157,7 +188,9 @@ export class DeckService {
    * even when Recipe Deck’s runner is IDLE (workloads started outside the UI).
    */
   private async probeLiveEndpoints(): Promise<void> {
-    const a = await this.probeOnePort(this.cfg.vllmPortA);
+    // Cluster recipes may listen on a per-recipe port set by YAML; solo runs use vllmPortA.
+    const port = this.runner.getListenPort();
+    const a = await this.probeOnePort(port);
     this.runner.servedModels = a.models;
     this.runner.docker = a.docker;
   }
@@ -189,7 +222,7 @@ export class DeckService {
       slot.liveStats = null;
       return;
     }
-    const port = this.cfg.vllmPortA;
+    const port = slot.getListenPort();
     try {
       const r = await fetch(`http://127.0.0.1:${port}/metrics`, {
         signal: AbortSignal.timeout(4000),
@@ -279,7 +312,9 @@ export class DeckService {
   getMetricsPayload(): MetricsPayload {
     return {
       disk: this.diskCache,
+      cpu: this.cpuCache,
       gpu: this.gpuCache,
+      hosts: this.hostsCache,
       slots: {
         [RUNNER_API_SLOT]: { tokPerSec: this.runner.tokPerSec },
       } as MetricsPayload["slots"],
@@ -324,13 +359,19 @@ export class DeckService {
     this.broadcastState();
   }
 
-  /** Save the current recipe state (called after a successful run). */
+  /**
+   * Persist the current recipe state (called after a successful run).
+   * Also updates the runner's in-memory `autoRestartEnabled` flag so a later
+   * unexpected exit respects the persisted choice without another save round-trip.
+   */
   async saveCurrentRecipeState(
     recipeStem: string,
     autoStart: boolean,
+    autoRestart: boolean,
   ): Promise<void> {
     const { writeCurrentRecipeState } = await import("./currentRecipe.js");
-    await writeCurrentRecipeState(recipeStem, autoStart);
+    await writeCurrentRecipeState(recipeStem, autoStart, autoRestart);
+    this.runner.setAutoRestartEnabled(autoRestart);
   }
 
   /** Clear the current recipe state (called on stop/kill). */

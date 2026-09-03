@@ -76,4 +76,11 @@ export interface SlotSnapshot {
   tokPerSec: number | null;
   /** Latest Prometheus scrape for the runner (null when not HEALTHY or unavailable). */
   liveStats: VllmLiveStats | null;
+  /**
+   * Epoch ms when crash auto-restart will fire (null when not scheduled).
+   * Client drives the circular countdown from this + {@link autoRestartCooldownMs}.
+   */
+  autoRestartAtMs: number | null;
+  /** Cooldown length in ms used for the countdown ring (default 30000). */
+  autoRestartCooldownMs: number | null;
 }

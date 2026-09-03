@@ -22,7 +22,8 @@ export function App(): ReactElement {
   const { theme, toggleTheme } = useTheme();
   const topFixedRef = useRef<HTMLDivElement>(null);
   const [autoStartEnabled, setAutoStartEnabled] = useState(true);
-  const editor = useAppRecipeEditor(deck, autoStartEnabled);
+  const [autoRestartEnabled, setAutoRestartEnabled] = useState(true);
+  const editor = useAppRecipeEditor(deck, autoStartEnabled, autoRestartEnabled);
 
   /** Keep main content below the fixed header; height changes when the error banner or header wraps. */
   useLayoutEffect(() => {
@@ -60,6 +61,13 @@ export function App(): ReactElement {
       setHfDraft(deck.hfToken);
     }
   }, [deck.hfToken]);
+
+  useEffect(() => {
+    if (deck.autoStart) {
+      setAutoStartEnabled(deck.autoStart.autoStart);
+      setAutoRestartEnabled(deck.autoStart.autoRestart);
+    }
+  }, [deck.autoStart]);
 
   const submitHf = useCallback(async () => {
     await deck.saveHf(hfDraft.trim());
@@ -215,6 +223,10 @@ export function App(): ReactElement {
                 setAutoStartEnabled((v) => !v);
                 void deck.toggleAutoStart(!autoStartEnabled);
               }}
+              onToggleAutoRestart={() => {
+                setAutoRestartEnabled((v) => !v);
+                void deck.toggleAutoRestart(!autoRestartEnabled);
+              }}
               onStop={() => {
                 void deck.stop();
               }}
@@ -225,6 +237,7 @@ export function App(): ReactElement {
               onDockerStop={handleDockerStop}
               modelCacheProgress={p?.modelCacheProgress ?? null}
               autoStartEnabled={autoStartEnabled}
+              autoRestartEnabled={autoRestartEnabled}
             />
           </div>
           <div className={styles.editorColumn}>

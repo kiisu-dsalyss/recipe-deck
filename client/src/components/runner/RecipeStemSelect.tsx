@@ -12,9 +12,13 @@ export function RecipeStemSelect(props: RecipeStemSelectProps): ReactElement {
       items: g.items.map((r) => {
         const short =
           folder && r.stem.startsWith(folder) ? r.stem.slice(folder.length) : r.stem;
+        const clusterTag =
+          r.kind === "sparkrun-cluster"
+            ? `[cluster${r.minNodes != null ? `×${r.minNodes}` : ""}] `
+            : "";
         return {
           value: r.stem,
-          label: `${r.broken ? "⚠ " : ""}${short}`,
+          label: `${r.broken ? "⚠ " : ""}${clusterTag}${short}`,
           danger: Boolean(r.broken),
         };
       }),

@@ -229,6 +229,10 @@ export function registerRoutes(app: Express, deck: DeckService): void {
     const autoStart =
       !useBuffer &&
       Boolean((req.body as { autoStart?: boolean }).autoStart);
+    /** Auto-restart on unexpected exit — default `true` when the flag is omitted. */
+    const autoRestartRaw = (req.body as { autoRestart?: unknown }).autoRestart;
+    const autoRestart =
+      autoRestartRaw === undefined ? true : Boolean(autoRestartRaw);
 
     if (slot === null) {
       res.status(400).json(LEGACY_SLOT_REJECT);
@@ -264,6 +268,7 @@ export function registerRoutes(app: Express, deck: DeckService): void {
           solo,
           bufferYaml: yamlBuffer,
           recipeOverrides,
+          autoRestart,
         });
       } else {
         await ctrl.run({
@@ -271,11 +276,12 @@ export function registerRoutes(app: Express, deck: DeckService): void {
           recipeAbsPath: diskPath,
           solo,
           recipeOverrides,
+          autoRestart,
         });
       }
       await deck.recordRecipeRun(recipeStem);
-      // Persist current recipe state (for auto-start on boot)
-      await deck.saveCurrentRecipeState(recipeStem, autoStart);
+      // Persist current recipe state (for auto-start on boot + auto-restart on crash)
+      await deck.saveCurrentRecipeState(recipeStem, autoStart, autoRestart);
       res.json({ ok: true });
     } catch (e) {
       res.status(400).json({ error: e instanceof Error ? e.message : String(e) });

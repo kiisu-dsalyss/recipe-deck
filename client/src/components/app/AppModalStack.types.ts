@@ -1,4 +1,8 @@
-import type { AppSettingsPayload, AppSettingsSaveBody } from "../../api/client";
+import type {
+  AppSettingsPayload,
+  AppSettingsSaveBody,
+  CurrentRecipeState,
+} from "../../api/client";
 import type { RecipeDeckPathsPayload, RecipeListItem } from "../../../../types/index.js";
 
 export interface AppModalStackProps {
@@ -16,8 +20,12 @@ export interface AppModalStackProps {
   onSaveHf: () => void;
   hfTokenLoading: boolean;
   onRefreshRecipes: () => void;
-  autoStartState: { recipeStem: string | null; autoStart: boolean } | null;
-  onAutoStartChange: (stem: string, enabled: boolean) => Promise<void>;
+  autoStartState: CurrentRecipeState | null;
+  onAutoStartChange: (
+    stem: string,
+    autoStart: boolean,
+    autoRestart: boolean,
+  ) => Promise<void>;
   pendingForce: boolean;
   onCancelForce: () => void;
   onConfirmForce: () => void;

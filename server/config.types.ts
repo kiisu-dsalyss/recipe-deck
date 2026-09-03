@@ -41,4 +41,20 @@ export interface AppConfig {
   hfHubCacheDir: string;
   /** How often to refresh on-disk vs expected model size while a slot is BOOTING (default 2000). */
   modelCachePollIntervalMs: number;
+  /** Binary for sparkrun cluster recipes (default `sparkrun`). */
+  sparkrunBin: string;
+  /** Extra args prepended before `run` / `stop` (space-split from env). */
+  sparkrunExtraArgs: string[];
+  /** Crash auto-restart cooldown in ms after unexpected exit (default 30000). */
+  autoRestartCooldownMs: number;
+  /** Root of sparkrun config tree, e.g. `~/.config/sparkrun`. Default: `$HOME/.config/sparkrun`. */
+  sparkrunConfigDir: string;
+  /** Explicit sparkrun cluster name; if unset, read from `clusters/.default`. */
+  sparkrunCluster: string | undefined;
+  /** Enable per-host CPU/GPU sampling via SSH (default true). */
+  clusterMetricsEnabled: boolean;
+  /** SSH user for remote host sampling; overrides cluster YAML `user:` when set. */
+  clusterMetricsSshUser: string | undefined;
+  /** SSH connect timeout in ms for cluster host sampling (default 4000). */
+  clusterMetricsSshTimeoutMs: number;
 }

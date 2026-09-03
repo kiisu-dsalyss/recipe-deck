@@ -10,6 +10,9 @@ export interface RecipeDeckPathsPayload {
   envFile: string;
 }
 
+/** How Recipe Deck launches a recipe. */
+export type RecipeLaunchKind = "solo" | "sparkrun-cluster";
+
 export interface RecipeListItem {
   stem: string;
   relativePath: string;
@@ -19,12 +22,43 @@ export interface RecipeListItem {
   broken?: boolean;
   /** Times this recipe was started via Recipe Deck (for list ordering). */
   runCount?: number;
+  /** Solo `run-recipe.py` vs sparkrun multi-node cluster. */
+  kind?: RecipeLaunchKind;
+  /** From YAML `min_nodes` when present. */
+  minNodes?: number | null;
+  /** From YAML `runtime` when present (e.g. `vllm`). */
+  runtime?: string | null;
 }
 
 export interface MetricsPayload {
   disk: { path: string; freeBytes: number; totalBytes: number } | null;
+  /** Host CPU utilization (from `/proc/stat` delta). */
+  cpu: CpuMetrics | null;
   gpu: GpuMetrics | null;
   slots: Record<SlotId, { tokPerSec: number | null }>;
+  /** Per-cluster-host CPU/GPU (head + workers). Absent/null when cluster metrics are off or single-host. */
+  hosts?: HostAccelMetrics[] | null;
+}
+
+/** CPU/GPU metrics for one cluster host (local head node or remote worker via SSH). */
+export interface HostAccelMetrics {
+  /** Host identifier as configured (IP or hostname). */
+  id: string;
+  /** Short UI label, e.g. `.100` for an IPv4 or hostname segment. */
+  label: string;
+  /** True when sampled locally (not via SSH). */
+  local: boolean;
+  cpu: CpuMetrics | null;
+  gpu: GpuMetrics | null;
+  /** ISO timestamp of last successful sample, or null. */
+  updatedAt: string | null;
+  /** Last error string when the sample failed. */
+  error?: string | null;
+}
+
+export interface CpuMetrics {
+  /** Host CPU utilization 0–100 from `/proc/stat` delta (null before first delta). */
+  utilizationPct: number | null;
 }
 
 export interface GpuMetrics {
@@ -70,13 +104,21 @@ export interface DockerListRow {
   ports: string;
 }
 
-/** Auto-start state for the current recipe (persisted in `.current-recipe`). */
-export interface AutoStartState {
-  /** The recipe stem configured for auto-start (null if no recipe is configured). */
+/**
+ * Persisted `.current-recipe` state — recipe stem, auto-start at boot, and
+ * auto-restart on unexpected exit.
+ */
+export interface CurrentRecipeState {
+  /** The recipe stem (null if no recipe is configured). */
   recipeStem: string | null;
-  /** Whether auto-start is enabled. */
+  /** Auto-start this recipe on Recipe Deck boot. */
   autoStart: boolean;
+  /** Auto-restart on unexpected process exit (default `true`). */
+  autoRestart: boolean;
 }
+
+/** @deprecated Prefer {@link CurrentRecipeState}. */
+export type AutoStartState = CurrentRecipeState;
 
 export interface FullStatePayload {
   listenHost?: string;
