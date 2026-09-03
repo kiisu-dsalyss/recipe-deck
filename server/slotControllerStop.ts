@@ -52,3 +52,39 @@ export async function stopChildForce(child: ChildProcess): Promise<void> {
     new Promise<void>((r) => setTimeout(r, 3000)),
   ]);
 }
+
+/**
+ * Combined stop: cancels the sparkrun cluster (if any) with `sparkrun stop`,
+ * then either graceful (SIGTERM → grace → SIGKILL) or force (SIGKILL immediately).
+ * Also handles the "no active child" case (still tears down cluster containers).
+ */
+export async function stopControllerRun(opts: {
+  child: ChildProcess | null;
+  mode: "graceful" | "force";
+  graceMs: number;
+  wasCluster: boolean;
+  clusterRecipeAbs: string | null;
+  runSparkrunStop: (recipeAbs: string) => Promise<void>;
+  markIntentionalStop: () => void;
+  markIdle: () => void;
+}): Promise<void> {
+  const clusterAbs =
+    opts.wasCluster && opts.clusterRecipeAbs ? opts.clusterRecipeAbs : null;
+  if (!opts.child?.pid) {
+    if (clusterAbs) {
+      opts.markIntentionalStop();
+      await opts.runSparkrunStop(clusterAbs);
+    }
+    opts.markIdle();
+    return;
+  }
+  opts.markIntentionalStop();
+  if (clusterAbs) {
+    await opts.runSparkrunStop(clusterAbs);
+  }
+  if (opts.mode === "graceful") {
+    await stopChildGraceful({ child: opts.child, graceMs: opts.graceMs });
+  } else {
+    await stopChildForce(opts.child);
+  }
+}

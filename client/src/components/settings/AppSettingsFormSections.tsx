@@ -1,5 +1,5 @@
 import type { Dispatch, ReactElement, SetStateAction } from "react";
-import type { AppSettingsEffective } from "../../api/client";
+import type { AppSettingsEffective, CurrentRecipeState } from "../../api/client";
 import { SPARK_VLLM_DOCKER_REPO_URL } from "../../constants/upstream";
 import { HfTokenField } from "./HfTokenField";
 import styles from "./AppSettingsPanel.module.css";
@@ -16,8 +16,12 @@ export function AppSettingsFormSections(props: {
   onSaveHf: () => void | Promise<void>;
   hfTokenLoading: boolean;
   onRefreshRecipes: () => void | Promise<void>;
-  autoStartState: { recipeStem: string | null; autoStart: boolean } | null;
-  onAutoStartChange: (stem: string, enabled: boolean) => Promise<void>;
+  autoStartState: CurrentRecipeState | null;
+  onAutoStartChange: (
+    stem: string,
+    autoStart: boolean,
+    autoRestart: boolean,
+  ) => Promise<void>;
 }): ReactElement {
   const {
     draft,
@@ -287,20 +291,44 @@ export function AppSettingsFormSections(props: {
           State is stored in <code className={styles.code}>.current-recipe</code> at the app root.
         </p>
         {autoStartState?.recipeStem ? (
-          <label className={styles.rowCheck}>
-            <input
-              type="checkbox"
-              checked={autoStartState.autoStart}
-              onChange={(e) => {
-                if (autoStartState.recipeStem) {
-                  void onAutoStartChange(autoStartState.recipeStem!, e.target.checked);
-                }
-              }}
-            />
-            <span className={styles.checkLabel}>
-              Auto-start {autoStartState.recipeStem} at boot
-            </span>
-          </label>
+          <>
+            <label className={styles.rowCheck}>
+              <input
+                type="checkbox"
+                checked={autoStartState.autoStart}
+                onChange={(e) => {
+                  if (autoStartState.recipeStem) {
+                    void onAutoStartChange(
+                      autoStartState.recipeStem,
+                      e.target.checked,
+                      autoStartState.autoRestart,
+                    );
+                  }
+                }}
+              />
+              <span className={styles.checkLabel}>
+                Auto-start {autoStartState.recipeStem} at boot
+              </span>
+            </label>
+            <label className={styles.rowCheck}>
+              <input
+                type="checkbox"
+                checked={autoStartState.autoRestart}
+                onChange={(e) => {
+                  if (autoStartState.recipeStem) {
+                    void onAutoStartChange(
+                      autoStartState.recipeStem,
+                      autoStartState.autoStart,
+                      e.target.checked,
+                    );
+                  }
+                }}
+              />
+              <span className={styles.checkLabel}>
+                Auto-restart {autoStartState.recipeStem} after unexpected exit (30s cooldown)
+              </span>
+            </label>
+          </>
         ) : (
           <p className={styles.p} style={{ fontStyle: "italic", color: "var(--color-muted)" }}>
             No recipe configured for auto-start. Run a recipe from the editor with "Auto start at boot" enabled to configure this.

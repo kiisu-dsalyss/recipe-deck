@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import fs from "node:fs/promises";
-import type { GpuMetrics } from "../../types/index.js";
+import type { CpuMetrics, GpuMetrics } from "../../types/index.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -32,6 +32,51 @@ export async function diskUsageForPath(
   } catch {
     return null;
   }
+}
+
+/** Previous `/proc/stat` sample kept between calls to compute utilization delta. */
+let prevCpuSample: { idle: number; total: number } | null = null;
+
+/**
+ * Host CPU utilization from Linux `/proc/stat` aggregate `cpu` line.
+ * First call primes the sample and returns `utilizationPct: null` — Linux only
+ * (macOS dev returns `null` when `/proc/stat` is missing).
+ */
+export async function hostCpuSnapshot(): Promise<CpuMetrics | null> {
+  let raw: string;
+  try {
+    raw = await fs.readFile("/proc/stat", "utf8");
+  } catch {
+    return null;
+  }
+  const line = raw.split(/\r?\n/).find((l) => l.startsWith("cpu "));
+  if (!line) {
+    return null;
+  }
+  const parts = line
+    .trim()
+    .split(/\s+/)
+    .slice(1)
+    .map((p) => Number.parseFloat(p));
+  if (parts.length < 4 || parts.some((n) => !Number.isFinite(n))) {
+    return null;
+  }
+  const idle = (parts[3] ?? 0) + (parts[4] ?? 0);
+  const total = parts.reduce((a, b) => a + b, 0);
+  const prev = prevCpuSample;
+  prevCpuSample = { idle, total };
+  if (!prev || total <= prev.total) {
+    return { utilizationPct: null };
+  }
+  const idleDelta = idle - prev.idle;
+  const totalDelta = total - prev.total;
+  if (totalDelta <= 0) {
+    return { utilizationPct: null };
+  }
+  const busy = 1 - idleDelta / totalDelta;
+  const utilizationPct =
+    Math.round(Math.min(100, Math.max(0, busy * 100)) * 10) / 10;
+  return { utilizationPct };
 }
 
 /**

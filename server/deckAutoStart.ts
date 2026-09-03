@@ -30,6 +30,7 @@ export async function tryAutoStart(opts: {
       recipeAbsPath: recipeAbs,
       solo: true,
       recipeOverrides: undefined,
+      autoRestart: state.autoRestart,
     });
     console.info(`[recipe-deck] auto-start completed for: ${state.recipeStem}`);
   } catch (e) {

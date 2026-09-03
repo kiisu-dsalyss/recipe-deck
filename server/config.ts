@@ -124,5 +124,21 @@ export function loadConfig(): AppConfig {
       return path.join(home, ".cache", "huggingface", "hub");
     })(),
     modelCachePollIntervalMs: int("MODEL_CACHE_POLL_MS", 2000),
+    sparkrunBin: process.env.SPARKRUN_BIN?.trim() || "sparkrun",
+    sparkrunExtraArgs: (() => {
+      const raw = process.env.SPARKRUN_EXTRA_ARGS?.trim();
+      if (!raw) return [];
+      return raw.split(/\s+/).filter(Boolean);
+    })(),
+    autoRestartCooldownMs: int("AUTORESTART_COOLDOWN_MS", 30_000),
+    sparkrunConfigDir: (() => {
+      const raw = process.env.SPARKRUN_CONFIG_DIR?.trim();
+      if (raw) return path.resolve(raw);
+      return path.join(process.env.HOME ?? process.cwd(), ".config", "sparkrun");
+    })(),
+    sparkrunCluster: process.env.SPARKRUN_CLUSTER?.trim() || undefined,
+    clusterMetricsEnabled: bool("CLUSTER_METRICS_ENABLED", true),
+    clusterMetricsSshUser: process.env.CLUSTER_METRICS_SSH_USER?.trim() || undefined,
+    clusterMetricsSshTimeoutMs: int("CLUSTER_METRICS_SSH_TIMEOUT_MS", 4000),
   };
 }

@@ -147,10 +147,3 @@
   font-weight: 600;
 }
 
-.footMeta {
-  flex-shrink: 0;
-  font-size: 0.7rem;
-  line-height: 1.45;
-  color: var(--color-muted);
-  word-break: break-word;
-}

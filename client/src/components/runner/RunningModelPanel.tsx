@@ -2,8 +2,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { ReactElement } from "react";
 import type { DockerListRow, ModelCacheProgress } from "../../../../types/index.js";
 import { formatBytes } from "../../lib/formatBytes";
-import { IconForceKill, IconPlay, IconPower, IconStopSign } from "../ui/glyphs.js";
+import {
+  IconAutoRestart,
+  IconForceKill,
+  IconPlay,
+  IconPower,
+  IconStopSign,
+} from "../ui/glyphs.js";
 import { ToolbarIconButton } from "../ui/ToolbarIconButton.js";
+import { AutoRestartCountdown } from "./AutoRestartCountdown.js";
 import { ModelCacheBar } from "./ModelCacheBar.js";
 import { RunnerLogPane } from "./RunnerLogPane.js";
 import { RecipeStemSelect } from "./RecipeStemSelect.js";
@@ -27,6 +34,8 @@ export function RunningModelPanel(props: RunningModelPanelProps): ReactElement {
     onForce,
     onToggleAutoStart,
     autoStartEnabled,
+    onToggleAutoRestart,
+    autoRestartEnabled,
     onDockerList,
     onDockerStop,
     modelCacheProgress,
@@ -235,6 +244,16 @@ export function RunningModelPanel(props: RunningModelPanelProps): ReactElement {
             </ToolbarIconButton>
             <ToolbarIconButton
               variant="accent"
+              label="auto restart on unexpected exit"
+              pressed={autoRestartEnabled ?? true}
+              onClick={() => {
+                onToggleAutoRestart?.();
+              }}
+            >
+              <IconAutoRestart />
+            </ToolbarIconButton>
+            <ToolbarIconButton
+              variant="accent"
               label="Run the selected recipe from its file on disk"
               onClick={onRun}
             >
@@ -287,6 +306,20 @@ export function RunningModelPanel(props: RunningModelPanelProps): ReactElement {
         <p className={styles.errLine} title={snap.lastError}>
           {snap.lastError}
         </p>
+      ) : null}
+      {snap?.autoRestartAtMs != null && snap.autoRestartCooldownMs != null ? (
+        <div
+          className={styles.autoRestartRow}
+          aria-label="Auto-restart scheduled"
+        >
+          <AutoRestartCountdown
+            autoRestartAtMs={snap.autoRestartAtMs}
+            cooldownMs={snap.autoRestartCooldownMs}
+          />
+          <span className={styles.autoRestartLabel}>
+            Auto-restarting after crash…
+          </span>
+        </div>
       ) : null}
       <RunningNowSection
         showRunning={showRunning}

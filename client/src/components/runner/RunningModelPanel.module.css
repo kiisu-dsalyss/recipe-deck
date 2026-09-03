@@ -250,6 +250,20 @@
   word-break: break-word;
 }
 
+.autoRestartRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--color-muted);
+}
+
+.autoRestartLabel {
+  line-height: 1.35;
+  color: var(--color-muted);
+}
+
 .pendingHint {
   margin: 0 0 var(--space-2);
   padding: var(--space-2);
