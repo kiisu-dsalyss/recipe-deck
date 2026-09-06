@@ -21,6 +21,7 @@ import {
 } from "./slotControllerRun.js";
 import { stopControllerRun } from "./slotControllerStop.js";
 import { sparkrunStop } from "./slotControllerSparkrun.js";
+import { ensureRecipeModel } from "./slotControllerEnsure.js";
 import {
   detectSparkContainerReuseInLine,
   pushLogLine,
@@ -323,6 +324,7 @@ export class SlotController {
     });
     this.recipeLaunchHint = hint.recipeLaunchHint;
     this.broadcastState();
+    await ensureRecipeModel(probe.model, (l) => this.appendRawLogLine(l));
 
     this.appendRawLogLine(`[recipe-deck] launch: ${hint.hintParts.join(" | ")}`);
     if (mergedYaml !== null) {

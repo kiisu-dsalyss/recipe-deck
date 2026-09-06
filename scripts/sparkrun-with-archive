@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Pass-through sparkrun wrapper: `run` ensures the YAML model first.
+set -euo pipefail
+REAL="${SPARKRUN_REAL:-}"
+if [[ -z "$REAL" ]]; then
+  HERE="$(cd "$(dirname "$0")" && pwd)"
+  if [[ -x "${HERE}/sparkrun.real" ]]; then
+    REAL="${HERE}/sparkrun.real"
+  elif [[ -x "${HOME}/.local/bin/sparkrun.real" ]]; then
+    REAL="${HOME}/.local/bin/sparkrun.real"
+  else
+    echo "sparkrun-with-archive: sparkrun.real not found" >&2
+    exit 127
+  fi
+fi
+
+if [[ "${1:-}" != "run" ]]; then
+  exec "$REAL" "$@"
+fi
+
+yaml=""
+for arg in "$@"; do
+  case "$arg" in
+    *.yaml|*.yml) yaml="$arg" ;;
+  esac
+done
+
+LLM_ARCHIVE="${LLM_ARCHIVE_BIN:-}"
+if [[ -z "$LLM_ARCHIVE" ]]; then
+  if [[ -x "${HOME}/.local/bin/llm-archive" ]]; then
+    LLM_ARCHIVE="${HOME}/.local/bin/llm-archive"
+  elif [[ -x "$(cd "$(dirname "$0")" && pwd)/llm-archive" ]]; then
+    LLM_ARCHIVE="$(cd "$(dirname "$0")" && pwd)/llm-archive"
+  fi
+fi
+
+if [[ -n "$yaml" && -f "$yaml" && -n "${LLM_ARCHIVE}" ]]; then
+  model="$(python3 - "$yaml" <<'PY'
+import re, sys
+text = open(sys.argv[1], errors="replace").read()
+m = re.search(r"^model:\s*(.+)$", text, re.M)
+if not m:
+    raise SystemExit(0)
+val = m.group(1)
+val = val.split("#", 1)[0].strip().strip('"').strip("'")
+print(val)
+PY
+)"
+  if [[ -n "${model}" ]]; then
+    echo "[sparkrun-with-archive] llm-archive ensure ${model}" >&2
+    "$LLM_ARCHIVE" ensure "$model"
+  fi
+fi
+
+exec "$REAL" "$@"

@@ -69,6 +69,9 @@ export function ModelCacheBar(props: {
         />
       </div>
       <div className={styles.cacheReadout}>
+        {cache.source ? (
+          <span className={styles.cachePctDisk}>{cache.source}</span>
+        ) : null}
         {cache.percent != null ? (
           <>
             <span

@@ -94,6 +94,8 @@ export interface ModelCacheProgress {
   percent: number | null;
   /** When `bytesExpected` is null: short reason (HF unreachable, 403, parse error). */
   expectedSizeError?: string | null;
+  /** Where weights will come from for this boot. */
+  source?: "nvme" | "archive" | "huggingface";
 }
 
 /** One row from `docker ps` for operator stop controls (zombie containers). */

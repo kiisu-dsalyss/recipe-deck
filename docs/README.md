@@ -6,6 +6,7 @@
 | [UI.md](UI.md) | CSS tokens, glass panels, background canvas, DRY conventions |
 | [../client/src/components/README.md](../client/src/components/README.md) | React **`components/`** folder map (`shell/`, `recipe/`, `runner/`, …) |
 | [OPERATOR-LOCAL.md](OPERATOR-LOCAL.md) | Gitignored **`operator.local.env`**, deploy SSH, remote paths |
+| [LLM-ARCHIVE.md](LLM-ARCHIVE.md) | Lolipop USB cold HF cache, `llm-archive`, sparkrun wrapper |
 | [../scripts/setup.sh](../scripts/setup.sh) | Interactive **`.env`** bootstrap; **`npm run setup`** — see [README.md](../README.md) |
 | [examples/recipe-deck-demo-qwen-0.5b.yaml](examples/recipe-deck-demo-qwen-0.5b.yaml) | Example tiny recipe for recordings (copy to **`$SPARK_VLLM_ROOT/recipes/`**); local **`demo/`** Playwright harness is **gitignored** |
 | [systemd/recipe-deck.service](systemd/recipe-deck.service) | Example **user** systemd unit |

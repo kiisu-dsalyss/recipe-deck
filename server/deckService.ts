@@ -131,6 +131,7 @@ export class DeckService {
       phase: sa.phase,
       recipeModelId: sa.recipeModelId,
       hfHubCacheDir: this.cfg.hfHubCacheDir,
+      hfArchiveDir: this.cfg.hfArchiveDir,
       envFile: this.paths.envFile,
     });
     if (!next) {
