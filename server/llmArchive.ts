@@ -69,22 +69,35 @@ export function isModelCached(hfHome: string, repoId: string): boolean {
 export function decideEnsureSource(opts: {
   repoId: string;
   liveHome: string;
-  archiveHome: string;
+  archiveHome?: string;
 }): ModelCacheSource {
   if (isModelCached(opts.liveHome, opts.repoId)) {
     return "nvme";
   }
-  if (isModelCached(opts.archiveHome, opts.repoId)) {
+  const archive = opts.archiveHome?.trim();
+  if (archive && isModelCached(archive, opts.repoId)) {
     return "archive";
   }
   return "huggingface";
 }
 
-export function defaultArchiveHome(explicit?: string): string | undefined {
-  const trimmed = explicit?.trim();
-  if (trimmed) {
-    return path.resolve(trimmed);
+/** Active archive root, or undefined when the feature is off / path empty. */
+export function resolveActiveArchiveDir(
+  enabledRaw?: string,
+  dirRaw?: string,
+): string | undefined {
+  const dir = dirRaw?.trim() ?? "";
+  if (!dir) {
+    return undefined;
   }
-  const fallback = "/mnt/Lolipop/hf-archive";
-  return fs.existsSync(fallback) ? fallback : undefined;
+  if (enabledRaw !== undefined && enabledRaw !== "") {
+    const on =
+      enabledRaw === "1" ||
+      enabledRaw.toLowerCase() === "true" ||
+      enabledRaw.toLowerCase() === "yes";
+    if (!on) {
+      return undefined;
+    }
+  }
+  return path.resolve(dir);
 }

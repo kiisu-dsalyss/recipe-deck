@@ -14,7 +14,7 @@ WEIGHT_GLOBS = ("*.safetensors", "*.bin", "*.pt", "*.gguf")
 DEFAULT_CONFIG = Path.home() / ".config" / "llm-archive" / "config.env"
 DEFAULT_HOT = Path.home() / ".config" / "llm-archive" / "hot-models.txt"
 DEFAULT_LIVE = Path.home() / ".cache" / "huggingface"
-DEFAULT_ARCHIVE = Path("/mnt/Lolipop/hf-archive")
+DEFAULT_ARCHIVE = Path("")
 DEFAULT_TOKEN_ENV = Path.home() / "repos" / "spark-vllm-docker" / ".env"
 HF_BIN = Path.home() / ".local" / "bin" / "hf"
 
@@ -51,10 +51,13 @@ def load_config() -> dict[str, str]:
     }
     cfg.update(load_kv(DEFAULT_CONFIG))
     for key in ("HF_LIVE", "HF_ARCHIVE", "HOT_LIST", "HF_TOKEN_ENV"):
-        env = os.environ.get(key)
-        if env:
-            cfg[key] = env
+        if key in os.environ:
+            cfg[key] = os.environ[key].strip()
     return cfg
+
+
+def archive_enabled(cfg: dict[str, str]) -> bool:
+    return bool(cfg.get("HF_ARCHIVE", "").strip())
 
 
 def live_home(cfg: dict[str, str]) -> Path:
@@ -74,6 +77,8 @@ def model_dir(home: Path, repo_id: str) -> Path:
 
 
 def is_complete(home: Path, repo_id: str) -> bool:
+    if not str(home).strip() or home == Path("."):
+        return False
     snaps = model_dir(home, repo_id) / "snapshots"
     if not snaps.is_dir():
         return False
@@ -112,7 +117,10 @@ def token_from_cfg(cfg: dict[str, str]) -> str:
 
 
 def log_dir(cfg: dict[str, str]) -> Path:
-    d = archive_home(cfg) / "logs"
+    if archive_enabled(cfg):
+        d = archive_home(cfg) / "logs"
+    else:
+        d = Path.home() / ".local" / "share" / "llm-archive" / "logs"
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -234,13 +242,20 @@ def cmd_ls(cfg: dict[str, str]) -> int:
     for folder in sorted(names):
         repo = folder_to_repo(folder)
         nv = "yes" if is_complete(live_home(cfg), repo) else "no"
-        ar = "yes" if is_complete(archive_home(cfg), repo) else "no"
+        ar = (
+            "yes"
+            if archive_enabled(cfg) and is_complete(archive_home(cfg), repo)
+            else "no"
+        )
         flag = "hot" if repo in hot else ""
         print(f"{repo:<72} {nv:<8} {ar:<8} {flag}")
     return 0
 
 
 def cmd_promote(cfg: dict[str, str], repo_id: str) -> int:
+    if not archive_enabled(cfg):
+        print("error: archive disabled (set HF_ARCHIVE or enable it in Recipe Deck Settings)", file=sys.stderr)
+        return 1
     src = model_dir(archive_home(cfg), repo_id)
     dst = model_dir(live_home(cfg), repo_id)
     if not is_complete(archive_home(cfg), repo_id):
@@ -255,6 +270,9 @@ def cmd_promote(cfg: dict[str, str], repo_id: str) -> int:
 
 
 def cmd_stash_one(cfg: dict[str, str], repo_id: str, *, delete_src: bool) -> int:
+    if not archive_enabled(cfg):
+        print("error: archive disabled (set HF_ARCHIVE or enable it in Recipe Deck Settings)", file=sys.stderr)
+        return 1
     if repo_id in hot_repos(cfg):
         print(f"skip hot {repo_id}")
         return 0
@@ -305,6 +323,9 @@ def cmd_stash_cold(cfg: dict[str, str]) -> int:
 
 
 def cmd_pull(cfg: dict[str, str], repo_id: str, revision: str | None) -> int:
+    if not archive_enabled(cfg):
+        print("error: archive disabled (set HF_ARCHIVE or enable it in Recipe Deck Settings)", file=sys.stderr)
+        return 1
     try:
         hf_download(cfg, repo_id, archive_home(cfg), revision)
     except subprocess.CalledProcessError as exc:
@@ -322,7 +343,7 @@ def cmd_ensure(cfg: dict[str, str], repo_id: str, revision: str | None) -> int:
     if is_complete(live_home(cfg), repo_id):
         print(f"ensure {repo_id}: nvme")
         return 0
-    if is_complete(archive_home(cfg), repo_id):
+    if archive_enabled(cfg) and is_complete(archive_home(cfg), repo_id):
         print(f"ensure {repo_id}: archive -> nvme")
         return cmd_promote(cfg, repo_id)
     print(f"ensure {repo_id}: huggingface -> nvme")

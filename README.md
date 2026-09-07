@@ -56,7 +56,7 @@ Stop / force-kill always tears down the managed child. For cluster runs, Recipe 
 - Start / stop / force-kill a **single** runner (**slot `a`** only; legacy `b` is rejected).
 - Live **log** view with bounded memory and optional rolling files on disk.
 - Edit **recipe YAML** from the UI; optional **`HF_TOKEN`** merge when the recipe omits `env.HF_TOKEN` (temp copy under `.recipe-deck-tmp`).
-- **Settings** for ports, Python path, ready-line regex, timeouts, and polling—written to the same env files the stack uses; restart Recipe Deck to apply most knobs.
+- **Settings** for ports, Python path, ready-line regex, timeouts, polling, and an **optional model archive** path—written to the same env files the stack uses. Restart Recipe Deck to apply most knobs; the archive toggle applies immediately.
 - Best-effort **metrics** in the header and live-stats panel:
   - Disk free under `SPARK_VLLM_ROOT`
   - **Host CPU utilization** (`/proc/stat`, Linux; shown as `CPU · N%` between Disk and GPU)
@@ -378,7 +378,7 @@ The example unit may reference **`EnvironmentFile=%h/.../recipe-deck/.env`**. Us
 | `GET` | `/api/recipe?name=` | Read YAML under `recipes/` |
 | `POST` | `/api/recipe/save` | Write YAML |
 | `GET` / `POST` | `/api/settings/hf-token` | Read/write `HF_TOKEN` in `SPARK_VLLM_ROOT/.env` |
-| `GET` / `POST` | `/api/settings/app` | Ports, `PYTHON`, `READY_REGEX`, timeouts, intervals (restart to apply) |
+| `GET` / `POST` | `/api/settings/app` | Ports, `PYTHON`, `READY_REGEX`, timeouts, intervals (restart to apply); optional `hfArchiveEnabled` / `hfArchiveDir` (no restart) |
 | `GET` / `POST` | `/api/settings/auto-start` | Read / write `.current-recipe` (`stem` / flags) |
 | `POST` | `/api/settings/auto-start/toggle` | Flip auto-start only |
 | `POST` | `/api/settings/auto-restart/toggle` | Flip auto-restart only |

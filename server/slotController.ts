@@ -324,7 +324,7 @@ export class SlotController {
     });
     this.recipeLaunchHint = hint.recipeLaunchHint;
     this.broadcastState();
-    await ensureRecipeModel(probe.model, (l) => this.appendRawLogLine(l));
+    await ensureRecipeModel(probe.model, this.cfg.hfArchiveDir, (l) => this.appendRawLogLine(l));
 
     this.appendRawLogLine(`[recipe-deck] launch: ${hint.hintParts.join(" | ")}`);
     if (mergedYaml !== null) {

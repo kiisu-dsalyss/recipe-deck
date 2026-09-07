@@ -150,6 +150,9 @@ export interface AppSettingsEffective {
   gpuStatsIntervalMs: number;
   vllmMetricsIntervalMs: number;
   simpleUi: boolean;
+  /** Cold HF archive. Off by default; other hosts may have no archive disk. */
+  hfArchiveEnabled: boolean;
+  hfArchiveDir: string;
 }
 
 export type AppSettingsSaveBody = Omit<AppSettingsEffective, "sparkVllmRoot">;
@@ -167,7 +170,9 @@ export interface AppSettingsPayload {
       | "DISK_STATS_INTERVAL_MS"
       | "GPU_STATS_INTERVAL_MS"
       | "VLLM_METRICS_INTERVAL_MS"
-      | "RECIPE_DECK_SIMPLE_UI",
+      | "RECIPE_DECK_SIMPLE_UI"
+      | "HF_ARCHIVE_ENABLED"
+      | "HF_ARCHIVE_DIR",
       string
     >
   >;

@@ -9,6 +9,7 @@ import {
   isModelCached,
   parseHotList,
   repoIdToHubFolderName,
+  resolveActiveArchiveDir,
 } from "../server/llmArchive.js";
 
 const repo = "orcarouter/Qwen3.8-Flash-Next-Uncensored-NVFP4";
@@ -85,6 +86,34 @@ describe("llm-archive helpers", () => {
     assert.equal(
       decideEnsureSource({ repoId: repo, liveHome: live, archiveHome: archive }),
       "nvme",
+    );
+  });
+
+  it("skips archive when no archive home is configured", () => {
+    const live = path.join(tmp, "live-no-archive");
+    const archive = path.join(tmp, "archive-ignored");
+    writeWeight(archive, repo);
+    assert.equal(
+      decideEnsureSource({ repoId: repo, liveHome: live }),
+      "huggingface",
+    );
+    assert.equal(
+      decideEnsureSource({ repoId: repo, liveHome: live, archiveHome: "" }),
+      "huggingface",
+    );
+  });
+
+  it("does not infer a Lolipop mount when archive env is unset", () => {
+    assert.equal(resolveActiveArchiveDir(undefined, undefined), undefined);
+    assert.equal(resolveActiveArchiveDir("", ""), undefined);
+    assert.equal(resolveActiveArchiveDir("false", "/mnt/Lolipop/hf-archive"), undefined);
+    assert.equal(
+      resolveActiveArchiveDir("true", "/mnt/archive/hf-archive"),
+      path.resolve("/mnt/archive/hf-archive"),
+    );
+    assert.equal(
+      resolveActiveArchiveDir(undefined, "/data/hf-archive"),
+      path.resolve("/data/hf-archive"),
     );
   });
 });

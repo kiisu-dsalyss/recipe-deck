@@ -24,6 +24,7 @@ function resolveLlmArchiveBin(): string | null {
 /** Run `llm-archive ensure` before spawn. No-op when there is no model or binary. */
 export function ensureRecipeModel(
   modelId: string | null,
+  archiveDir: string | undefined,
   onLine: (line: string) => void,
 ): Promise<void> {
   const repo = modelId?.trim() ?? "";
@@ -39,6 +40,7 @@ export function ensureRecipeModel(
   return new Promise((resolve, reject) => {
     const child = spawn(bin, ["ensure", repo], {
       stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, HF_ARCHIVE: archiveDir?.trim() ?? "" },
     });
     const pump = (buf: Buffer) => {
       for (const line of buf.toString("utf8").split(/\r?\n/)) {

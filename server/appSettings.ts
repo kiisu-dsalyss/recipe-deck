@@ -1,4 +1,5 @@
 import type { AppConfig } from "./config.js";
+import { resolveActiveArchiveDir } from "./llmArchive.js";
 import type { AppSettingsEffective } from "../types/api.js";
 
 export type { AppSettingsEffective } from "../types/api.js";
@@ -16,6 +17,9 @@ export const APP_SETTINGS_ENV_KEYS = [
   "VLLM_METRICS_INTERVAL_MS",
   /** Client UI only; read from disk for GET /api/settings/app (no restart). */
   "RECIPE_DECK_SIMPLE_UI",
+  /** Optional cold HF archive; applied in-process on save (no restart). */
+  "HF_ARCHIVE_ENABLED",
+  "HF_ARCHIVE_DIR",
 ] as const;
 
 export type AppSettingsEnvKey = (typeof APP_SETTINGS_ENV_KEYS)[number];
@@ -45,15 +49,20 @@ export function appSettingsEffective(cfg: AppConfig): AppSettingsEffective {
     gpuStatsIntervalMs: cfg.gpuStatsIntervalMs,
     vllmMetricsIntervalMs: cfg.vllmMetricsIntervalMs,
     simpleUi: false,
+    hfArchiveEnabled: Boolean(cfg.hfArchiveDir),
+    hfArchiveDir: cfg.hfArchiveDir ?? "",
   };
 }
 
-function parseSimpleUiFromSaved(saved: Record<string, string>): boolean {
-  const raw = saved["RECIPE_DECK_SIMPLE_UI"];
+function parseEnvFlag(raw: string | undefined): boolean {
   if (raw === undefined) return false;
   const v = raw.trim();
   if (v === "") return false;
   return v === "1" || v.toLowerCase() === "true" || v.toLowerCase() === "yes";
+}
+
+function parseSimpleUiFromSaved(saved: Record<string, string>): boolean {
+  return parseEnvFlag(saved["RECIPE_DECK_SIMPLE_UI"]);
 }
 
 /** Effective settings including UI flags read from the saved `.env` file on disk. */
@@ -61,10 +70,29 @@ export function appSettingsEffectiveWithSaved(
   cfg: AppConfig,
   savedAll: Record<string, string>,
 ): AppSettingsEffective {
+  const archiveEnabledRaw = savedAll["HF_ARCHIVE_ENABLED"];
+  const archiveDirSaved = savedAll["HF_ARCHIVE_DIR"] ?? cfg.hfArchiveDir ?? "";
+  const archiveOn =
+    archiveEnabledRaw !== undefined
+      ? parseEnvFlag(archiveEnabledRaw)
+      : Boolean(cfg.hfArchiveDir);
   return {
     ...appSettingsEffective(cfg),
     simpleUi: parseSimpleUiFromSaved(savedAll),
+    hfArchiveEnabled: archiveOn,
+    hfArchiveDir: archiveDirSaved,
   };
+}
+
+/** Apply archive settings to the running process (Settings save; no restart). */
+export function applyArchiveSetting(
+  cfg: AppConfig,
+  updates: Record<string, string>,
+): void {
+  cfg.hfArchiveDir = resolveActiveArchiveDir(
+    updates.HF_ARCHIVE_ENABLED,
+    updates.HF_ARCHIVE_DIR,
+  );
 }
 
 /** True when `$SPARK_VLLM_ROOT/.env` differs from what this process was started with. */
@@ -122,6 +150,23 @@ export function parseAppSettingsPost(
   if (typeof simpleUiRaw !== "boolean") {
     return { ok: false, error: "simpleUi must be boolean" };
   }
+  const hfArchiveEnabledRaw = b.hfArchiveEnabled;
+  if (typeof hfArchiveEnabledRaw !== "boolean") {
+    return { ok: false, error: "hfArchiveEnabled must be boolean" };
+  }
+  const hfArchiveDirRaw = str(b, "hfArchiveDir");
+  if (hfArchiveDirRaw === null) {
+    return { ok: false, error: "hfArchiveDir must be a string" };
+  }
+  const hfArchiveDir = hfArchiveDirRaw.trim();
+  if (hfArchiveEnabledRaw) {
+    if (!hfArchiveDir) {
+      return { ok: false, error: "archive path is required when the archive is enabled" };
+    }
+    if (!hfArchiveDir.startsWith("/")) {
+      return { ok: false, error: "archive path must be an absolute directory" };
+    }
+  }
 
   if (
     switcherPort === null ||
@@ -175,6 +220,8 @@ export function parseAppSettingsPost(
       GPU_STATS_INTERVAL_MS: String(gpuStatsIntervalMs),
       VLLM_METRICS_INTERVAL_MS: String(vllmMetricsIntervalMs),
       RECIPE_DECK_SIMPLE_UI: simpleUiRaw ? "true" : "false",
+      HF_ARCHIVE_ENABLED: hfArchiveEnabledRaw ? "true" : "false",
+      HF_ARCHIVE_DIR: hfArchiveDir,
     },
   };
 }
