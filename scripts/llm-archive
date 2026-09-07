@@ -1,0 +1,398 @@
+#!/usr/bin/env python3
+"""Cold Hugging Face hub on Lolipop: NVMe → archive → Hugging Face."""
+
+from __future__ import annotations
+
+import argparse
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+WEIGHT_GLOBS = ("*.safetensors", "*.bin", "*.pt", "*.gguf")
+DEFAULT_CONFIG = Path.home() / ".config" / "llm-archive" / "config.env"
+DEFAULT_HOT = Path.home() / ".config" / "llm-archive" / "hot-models.txt"
+DEFAULT_LIVE = Path.home() / ".cache" / "huggingface"
+DEFAULT_ARCHIVE = Path("")
+DEFAULT_TOKEN_ENV = Path.home() / "repos" / "spark-vllm-docker" / ".env"
+HF_BIN = Path.home() / ".local" / "bin" / "hf"
+
+
+def repo_folder(repo_id: str) -> str:
+    return "models--" + repo_id.strip().replace("/", "--")
+
+
+def folder_to_repo(folder: str) -> str:
+    if folder.startswith("models--"):
+        return folder[len("models--") :].replace("--", "/", 1)
+    return folder
+
+
+def load_kv(path: Path) -> dict[str, str]:
+    data: dict[str, str] = {}
+    if not path.is_file():
+        return data
+    for raw in path.read_text(errors="replace").splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, val = line.split("=", 1)
+        data[key.strip()] = val.strip().strip('"').strip("'")
+    return data
+
+
+def load_config() -> dict[str, str]:
+    cfg = {
+        "HF_LIVE": str(DEFAULT_LIVE),
+        "HF_ARCHIVE": str(DEFAULT_ARCHIVE),
+        "HOT_LIST": str(DEFAULT_HOT),
+        "HF_TOKEN_ENV": str(DEFAULT_TOKEN_ENV),
+    }
+    cfg.update(load_kv(DEFAULT_CONFIG))
+    for key in ("HF_LIVE", "HF_ARCHIVE", "HOT_LIST", "HF_TOKEN_ENV"):
+        if key in os.environ:
+            cfg[key] = os.environ[key].strip()
+    return cfg
+
+
+def archive_enabled(cfg: dict[str, str]) -> bool:
+    return bool(cfg.get("HF_ARCHIVE", "").strip())
+
+
+def live_home(cfg: dict[str, str]) -> Path:
+    return Path(cfg["HF_LIVE"])
+
+
+def archive_home(cfg: dict[str, str]) -> Path:
+    return Path(cfg["HF_ARCHIVE"])
+
+
+def hub(home: Path) -> Path:
+    return home / "hub"
+
+
+def model_dir(home: Path, repo_id: str) -> Path:
+    return hub(home) / repo_folder(repo_id)
+
+
+def is_complete(home: Path, repo_id: str) -> bool:
+    if not str(home).strip() or home == Path("."):
+        return False
+    snaps = model_dir(home, repo_id) / "snapshots"
+    if not snaps.is_dir():
+        return False
+    for snap in snaps.iterdir():
+        if not snap.is_dir():
+            continue
+        for pat in WEIGHT_GLOBS:
+            if any(snap.rglob(pat)):
+                return True
+    return False
+
+
+def hot_repos(cfg: dict[str, str]) -> set[str]:
+    path = Path(cfg["HOT_LIST"])
+    if not path.is_file():
+        return set()
+    out: set[str] = set()
+    for raw in path.read_text(errors="replace").splitlines():
+        line = raw.strip()
+        if line and not line.startswith("#"):
+            out.add(line)
+    return out
+
+
+def token_from_cfg(cfg: dict[str, str]) -> str:
+    for key in ("HF_TOKEN", "HUGGING_FACE_HUB_TOKEN"):
+        env = os.environ.get(key, "").strip()
+        if env:
+            return env
+    kv = load_kv(Path(cfg["HF_TOKEN_ENV"]))
+    for key in ("HF_TOKEN", "HUGGING_FACE_HUB_TOKEN"):
+        val = kv.get(key, "").strip()
+        if val:
+            return val
+    return ""
+
+
+def log_dir(cfg: dict[str, str]) -> Path:
+    if archive_enabled(cfg):
+        d = archive_home(cfg) / "logs"
+    else:
+        d = Path.home() / ".local" / "share" / "llm-archive" / "logs"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+HOT_FOLDERS = (
+    "models--RadixArk--Qwen3.8-Flash-Next-NVFP4",
+    "models--neko-legends--GLM-5.3-Flash-Uncensored-EXL3",
+)
+
+
+def rsync_tree(src: Path, dst: Path) -> None:
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    src_s, dst_s = f"{src}/", f"{dst}/"
+    cmd = ["rsync", "-a", "--info=progress2", src_s, dst_s]
+    print("+", " ".join(cmd), flush=True)
+    try:
+        subprocess.check_call(cmd)
+        return
+    except subprocess.CalledProcessError as exc:
+        if exc.returncode not in (12, 13, 23):
+            raise
+        print(f"rsync exit {exc.returncode}; retrying privileged", flush=True)
+    resolved_src = src.resolve()
+    resolved_dst = dst.resolve()
+    if not resolved_src.name.startswith("models--") or resolved_src.name != resolved_dst.name:
+        raise ValueError(f"refusing privileged rsync {resolved_src} -> {resolved_dst}")
+    if resolved_src.name in HOT_FOLDERS:
+        raise ValueError(f"refusing privileged rsync of hot model {resolved_src}")
+    priv = [
+        "docker",
+        "run",
+        "--rm",
+        "--privileged",
+        "--pid=host",
+        "alpine:3.20",
+        "nsenter",
+        "-t",
+        "1",
+        "-m",
+        "rsync",
+        "-a",
+        "--info=progress2",
+        src_s,
+        dst_s,
+    ]
+    print("+", " ".join(priv), flush=True)
+    subprocess.check_call(priv)
+
+
+def _chmod_onexc(func, path, exc):
+    try:
+        os.chmod(path, 0o700)
+        func(path)
+    except OSError as err:
+        raise exc from err
+
+
+def remove_live_repo(src: Path, live_hub: Path) -> None:
+    """Delete one NVMe hub folder. Never touch hot models or paths outside the hub."""
+    resolved = src.resolve()
+    hub_res = live_hub.resolve()
+    if resolved.parent != hub_res:
+        raise ValueError(f"refusing to delete outside live hub: {resolved}")
+    if not resolved.name.startswith("models--"):
+        raise ValueError(f"refusing to delete non-model path: {resolved}")
+    if resolved.name in HOT_FOLDERS:
+        raise ValueError(f"refusing to delete hot model: {resolved}")
+    try:
+        shutil.rmtree(resolved, onexc=_chmod_onexc)
+        return
+    except PermissionError:
+        pass
+    print(f"+ privileged rm -rf {resolved}", flush=True)
+    subprocess.check_call(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--privileged",
+            "--pid=host",
+            "alpine:3.20",
+            "nsenter",
+            "-t",
+            "1",
+            "-m",
+            "rm",
+            "-rf",
+            "--",
+            str(resolved),
+        ]
+    )
+    if resolved.exists():
+        raise PermissionError(f"privileged rm left {resolved}")
+
+
+def hf_download(cfg: dict[str, str], repo_id: str, dest_home: Path, revision: str | None) -> None:
+    hub(dest_home).mkdir(parents=True, exist_ok=True)
+    token = token_from_cfg(cfg)
+    hf = str(HF_BIN) if HF_BIN.is_file() else "hf"
+    cmd = [hf, "download", repo_id]
+    if revision:
+        cmd.extend(["--revision", revision])
+    env = os.environ.copy()
+    env["HF_HUB_CACHE"] = str(hub(dest_home))
+    if token:
+        env["HF_TOKEN"] = token
+    print(f"+ HF_HUB_CACHE={env['HF_HUB_CACHE']} {' '.join(cmd)}", flush=True)
+    subprocess.check_call(cmd, env=env)
+
+
+def cmd_ls(cfg: dict[str, str]) -> int:
+    hot = hot_repos(cfg)
+    names: set[str] = set()
+    for home in (live_home(cfg), archive_home(cfg)):
+        h = hub(home)
+        if h.is_dir():
+            names.update(p.name for p in h.iterdir() if p.name.startswith("models--"))
+    print(f"{'repo':<72} {'nvme':<8} {'archive':<8} hot")
+    for folder in sorted(names):
+        repo = folder_to_repo(folder)
+        nv = "yes" if is_complete(live_home(cfg), repo) else "no"
+        ar = (
+            "yes"
+            if archive_enabled(cfg) and is_complete(archive_home(cfg), repo)
+            else "no"
+        )
+        flag = "hot" if repo in hot else ""
+        print(f"{repo:<72} {nv:<8} {ar:<8} {flag}")
+    return 0
+
+
+def cmd_promote(cfg: dict[str, str], repo_id: str) -> int:
+    if not archive_enabled(cfg):
+        print("error: archive disabled (set HF_ARCHIVE or enable it in Recipe Deck Settings)", file=sys.stderr)
+        return 1
+    src = model_dir(archive_home(cfg), repo_id)
+    dst = model_dir(live_home(cfg), repo_id)
+    if not is_complete(archive_home(cfg), repo_id):
+        print(f"error: archive incomplete: {src}", file=sys.stderr)
+        return 1
+    rsync_tree(src, dst)
+    if not is_complete(live_home(cfg), repo_id):
+        print(f"error: promote did not yield a complete NVMe snapshot: {dst}", file=sys.stderr)
+        return 1
+    print(f"promoted {repo_id} -> {dst}")
+    return 0
+
+
+def cmd_stash_one(cfg: dict[str, str], repo_id: str, *, delete_src: bool) -> int:
+    if not archive_enabled(cfg):
+        print("error: archive disabled (set HF_ARCHIVE or enable it in Recipe Deck Settings)", file=sys.stderr)
+        return 1
+    if repo_id in hot_repos(cfg):
+        print(f"skip hot {repo_id}")
+        return 0
+    src = model_dir(live_home(cfg), repo_id)
+    dst = model_dir(archive_home(cfg), repo_id)
+    if not src.exists():
+        print(f"error: not on NVMe: {src}", file=sys.stderr)
+        return 1
+    try:
+        rsync_tree(src, dst)
+    except (OSError, ValueError, subprocess.CalledProcessError) as exc:
+        print(f"error: rsync {repo_id}: {exc}", file=sys.stderr)
+        return 1
+    if not is_complete(archive_home(cfg), repo_id) and not any(dst.rglob("*")):
+        print(f"error: stash dest empty: {dst}", file=sys.stderr)
+        return 1
+    if delete_src:
+        try:
+            remove_live_repo(src, hub(live_home(cfg)))
+        except (OSError, ValueError) as exc:
+            print(f"error: could not remove NVMe {src}: {exc}", file=sys.stderr)
+            return 1
+        print(f"removed NVMe {src}")
+    print(f"stashed {repo_id} -> {dst}")
+    return 0
+
+
+def cmd_stash_cold(cfg: dict[str, str]) -> int:
+    live = hub(live_home(cfg))
+    if not live.is_dir():
+        print("no live hub")
+        return 0
+    rc = 0
+    for path in sorted(live.iterdir()):
+        if not path.name.startswith("models--"):
+            continue
+        repo = folder_to_repo(path.name)
+        if repo in hot_repos(cfg):
+            print(f"skip hot {repo}")
+            continue
+        try:
+            if cmd_stash_one(cfg, repo, delete_src=True) != 0:
+                rc = 1
+        except (OSError, ValueError, subprocess.CalledProcessError) as exc:
+            print(f"error: stash {repo}: {exc}", file=sys.stderr)
+            rc = 1
+    return rc
+
+
+def cmd_pull(cfg: dict[str, str], repo_id: str, revision: str | None) -> int:
+    if not archive_enabled(cfg):
+        print("error: archive disabled (set HF_ARCHIVE or enable it in Recipe Deck Settings)", file=sys.stderr)
+        return 1
+    try:
+        hf_download(cfg, repo_id, archive_home(cfg), revision)
+    except subprocess.CalledProcessError as exc:
+        print(f"error: hf download failed ({exc.returncode})", file=sys.stderr)
+        print(
+            "If this is a gated card, accept it in the browser, then retry.",
+            file=sys.stderr,
+        )
+        return exc.returncode or 1
+    print(f"pulled {repo_id} -> {model_dir(archive_home(cfg), repo_id)}")
+    return 0
+
+
+def cmd_ensure(cfg: dict[str, str], repo_id: str, revision: str | None) -> int:
+    if is_complete(live_home(cfg), repo_id):
+        print(f"ensure {repo_id}: nvme")
+        return 0
+    if archive_enabled(cfg) and is_complete(archive_home(cfg), repo_id):
+        print(f"ensure {repo_id}: archive -> nvme")
+        return cmd_promote(cfg, repo_id)
+    print(f"ensure {repo_id}: huggingface -> nvme")
+    try:
+        hf_download(cfg, repo_id, live_home(cfg), revision)
+    except subprocess.CalledProcessError as exc:
+        print(f"error: hf download failed ({exc.returncode})", file=sys.stderr)
+        return exc.returncode or 1
+    if not is_complete(live_home(cfg), repo_id):
+        print(f"error: download did not yield a complete NVMe snapshot", file=sys.stderr)
+        return 1
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(prog="llm-archive")
+    sub = parser.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("ls")
+    p_stash = sub.add_parser("stash")
+    p_stash.add_argument("repo", nargs="?")
+    p_stash.add_argument("--all-cold", action="store_true")
+    p_prom = sub.add_parser("promote")
+    p_prom.add_argument("repo")
+    p_pull = sub.add_parser("pull")
+    p_pull.add_argument("repo")
+    p_pull.add_argument("--revision")
+    p_ens = sub.add_parser("ensure")
+    p_ens.add_argument("repo")
+    p_ens.add_argument("--revision")
+    args = parser.parse_args(argv)
+    cfg = load_config()
+    log_dir(cfg)
+    if args.cmd == "ls":
+        return cmd_ls(cfg)
+    if args.cmd == "stash":
+        if args.all_cold:
+            return cmd_stash_cold(cfg)
+        if not args.repo:
+            print("error: stash needs a repo or --all-cold", file=sys.stderr)
+            return 2
+        return cmd_stash_one(cfg, args.repo, delete_src=True)
+    if args.cmd == "promote":
+        return cmd_promote(cfg, args.repo)
+    if args.cmd == "pull":
+        return cmd_pull(cfg, args.repo, args.revision)
+    if args.cmd == "ensure":
+        return cmd_ensure(cfg, args.repo, args.revision)
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

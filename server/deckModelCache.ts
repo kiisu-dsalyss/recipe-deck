@@ -1,4 +1,5 @@
 import { readHfTokenFromFile } from "./envMerge.js";
+import { decideEnsureSource } from "./llmArchive.js";
 import { computeModelCacheProgress } from "./modelCacheProgress.js";
 import type { ModelCacheProgress, SlotPhase } from "../types/index.js";
 
@@ -6,6 +7,7 @@ export async function pollBootingModelCache(opts: {
   phase: SlotPhase;
   recipeModelId: string | null;
   hfHubCacheDir: string | undefined;
+  hfArchiveDir?: string;
   envFile: string;
 }): Promise<ModelCacheProgress | null> {
   const bootModelId =
@@ -25,10 +27,21 @@ export async function pollBootingModelCache(opts: {
     hfToken: tok,
     envFile: opts.envFile,
   });
+  const liveHome = opts.hfHubCacheDir
+    ? opts.hfHubCacheDir.replace(/\/hub\/?$/, "")
+    : `${process.env.HOME ?? ""}/.cache/huggingface`;
+  const source = opts.hfArchiveDir
+    ? decideEnsureSource({
+        repoId: bootModelId,
+        liveHome,
+        archiveHome: opts.hfArchiveDir,
+      })
+    : undefined;
   return {
     modelId: snap.modelId,
     bytesOnDisk: snap.bytesOnDisk,
     bytesExpected: snap.bytesExpected,
     percent: snap.percent,
+    source,
   };
 }

@@ -1,6 +1,7 @@
 import path from "node:path";
 import { config as loadDotenv } from "dotenv";
 import { resolveDockerImageAliases } from "./dockerImageAliases.js";
+import { resolveActiveArchiveDir } from "./llmArchive.js";
 import type { AppConfig } from "./config.types.js";
 
 export type { AppConfig } from "./config.types.js";
@@ -123,6 +124,10 @@ export function loadConfig(): AppConfig {
       const home = process.env.HOME ?? process.cwd();
       return path.join(home, ".cache", "huggingface", "hub");
     })(),
+    hfArchiveDir: resolveActiveArchiveDir(
+      process.env.HF_ARCHIVE_ENABLED,
+      process.env.HF_ARCHIVE_DIR,
+    ),
     modelCachePollIntervalMs: int("MODEL_CACHE_POLL_MS", 2000),
     sparkrunBin: process.env.SPARKRUN_BIN?.trim() || "sparkrun",
     sparkrunExtraArgs: (() => {

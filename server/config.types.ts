@@ -39,6 +39,12 @@ export interface AppConfig {
    * or `$HF_HOME/hub` when set.
    */
   hfHubCacheDir: string;
+  /**
+   * Optional cold HF archive root (contains `hub/`). Unset/empty = disabled.
+   * Set from Settings (`HF_ARCHIVE_ENABLED` + `HF_ARCHIVE_DIR`). Never inferred
+   * from a mount path — other hosts will not have a Lolipop disk.
+   */
+  hfArchiveDir: string | undefined;
   /** How often to refresh on-disk vs expected model size while a slot is BOOTING (default 2000). */
   modelCachePollIntervalMs: number;
   /** Binary for sparkrun cluster recipes (default `sparkrun`). */

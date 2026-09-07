@@ -10,6 +10,7 @@ import {
   loadEnvKeyValue,
 } from "../envMerge.js";
 import {
+  applyArchiveSetting,
   appSettingsEffectiveWithSaved,
   appSettingsRestartRequired,
   parseAppSettingsPost,
@@ -334,6 +335,7 @@ export function registerRoutes(app: Express, deck: DeckService): void {
       return;
     }
     await mergeEnvKeysIntoEnvFile(deck.paths.envFile, parsed.updates);
+    applyArchiveSetting(deck.cfg, parsed.updates);
     const savedAll = await loadEnvKeyValue(deck.paths.envFile);
     res.json({
       ok: true,

@@ -268,6 +268,39 @@ export function AppSettingsFormSections(props: {
       </fieldset>
 
       <fieldset className={styles.fieldset}>
+        <legend className={styles.legend}>Model archive</legend>
+        <p className={styles.p}>
+          Optional cold store for Hugging Face snapshots (USB disk, second SSD). Leave
+          this off unless you have a dedicated archive path. Serve always uses the live
+          cache; enable only promotes onto that cache before launch. Applies after save
+          (no restart).
+        </p>
+        <label className={styles.rowCheck}>
+          <input
+            type="checkbox"
+            checked={draft.hfArchiveEnabled ?? false}
+            onChange={(e) => {
+              setDraft((d) => (d ? { ...d, hfArchiveEnabled: e.target.checked } : d));
+            }}
+          />
+          <span className={styles.checkLabel}>Use a model archive</span>
+        </label>
+        <label className={styles.row}>
+          <span className={styles.label}>Archive directory</span>
+          <input
+            className={styles.inputWide}
+            type="text"
+            value={draft.hfArchiveDir ?? ""}
+            placeholder="/mnt/archive/hf-archive"
+            onChange={(e) => {
+              setDraft((d) => (d ? { ...d, hfArchiveDir: e.target.value } : d));
+            }}
+            spellCheck={false}
+          />
+        </label>
+      </fieldset>
+
+      <fieldset className={styles.fieldset}>
         <legend className={styles.legend}>Appearance</legend>
         <label className={styles.rowCheck}>
           <input

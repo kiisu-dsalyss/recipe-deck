@@ -10,7 +10,8 @@ export function HeaderCacheStrip(props: {
   if (!cache) return <div className={styles.cacheCenter} aria-hidden />;
   const title =
     `${cache.modelId} — ${formatBytes(cache.bytesOnDisk)} on disk` +
-    (cache.bytesExpected != null ? ` / ${formatBytes(cache.bytesExpected)} expected` : "");
+    (cache.bytesExpected != null ? ` / ${formatBytes(cache.bytesExpected)} expected` : "") +
+    (cache.source ? ` — ${cache.source}` : "");
   const stats =
     cache.bytesExpected != null && cache.bytesExpected > 0
       ? `${cache.percent != null ? `${cache.percent.toFixed(1)}% · ` : ""}${formatBytes(cache.bytesOnDisk)} / ${formatBytes(cache.bytesExpected)}`

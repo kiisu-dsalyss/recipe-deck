@@ -17,6 +17,8 @@ function toSaveBody(d: AppSettingsEffective): AppSettingsSaveBody {
     gpuStatsIntervalMs: d.gpuStatsIntervalMs,
     vllmMetricsIntervalMs: d.vllmMetricsIntervalMs,
     simpleUi: d.simpleUi,
+    hfArchiveEnabled: d.hfArchiveEnabled ?? false,
+    hfArchiveDir: d.hfArchiveDir ?? "",
   };
 }
 
@@ -47,6 +49,8 @@ export function AppSettingsPanel(props: AppSettingsPanelProps): ReactElement {
       setDraft({
         ...e,
         simpleUi: e.simpleUi ?? false,
+        hfArchiveEnabled: e.hfArchiveEnabled ?? false,
+        hfArchiveDir: e.hfArchiveDir ?? "",
       });
     }
   }, [payload]);
@@ -138,7 +142,12 @@ export function AppSettingsPanel(props: AppSettingsPanelProps): ReactElement {
           className={styles.btnGhost}
           disabled={saving}
           onClick={() => {
-            setDraft({ ...eff, simpleUi: eff.simpleUi ?? false });
+            setDraft({
+              ...eff,
+              simpleUi: eff.simpleUi ?? false,
+              hfArchiveEnabled: eff.hfArchiveEnabled ?? false,
+              hfArchiveDir: eff.hfArchiveDir ?? "",
+            });
             setErr(null);
           }}
         >
