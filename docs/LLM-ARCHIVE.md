@@ -7,7 +7,7 @@ Cold Hugging Face snapshots live on the Seagate USB at `/mnt/Lolipop/hf-archive`
 `scripts/llm-archive` (install to `~/.local/bin/llm-archive`):
 
 - `ls` — NVMe / archive / hot
-- `stash <repo>` / `stash --all-cold` — move non-hot NVMe trees to the archive
+- `stash <repo>` / `stash --all-cold` — move non-hot NVMe trees to the archive (skips the hot pair; root-owned leftover stubs are removed after verify)
 - `promote <repo>` — copy archive → NVMe
 - `pull <repo>` — download into the archive only
 - `ensure <repo>` — the launch chain

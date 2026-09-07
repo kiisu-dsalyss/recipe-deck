@@ -117,11 +117,95 @@ def log_dir(cfg: dict[str, str]) -> Path:
     return d
 
 
+HOT_FOLDERS = (
+    "models--RadixArk--Qwen3.8-Flash-Next-NVFP4",
+    "models--neko-legends--GLM-5.3-Flash-Uncensored-EXL3",
+)
+
+
 def rsync_tree(src: Path, dst: Path) -> None:
     dst.parent.mkdir(parents=True, exist_ok=True)
-    cmd = ["rsync", "-a", "--info=progress2", f"{src}/", f"{dst}/"]
+    src_s, dst_s = f"{src}/", f"{dst}/"
+    cmd = ["rsync", "-a", "--info=progress2", src_s, dst_s]
     print("+", " ".join(cmd), flush=True)
-    subprocess.check_call(cmd)
+    try:
+        subprocess.check_call(cmd)
+        return
+    except subprocess.CalledProcessError as exc:
+        if exc.returncode not in (12, 13, 23):
+            raise
+        print(f"rsync exit {exc.returncode}; retrying privileged", flush=True)
+    resolved_src = src.resolve()
+    resolved_dst = dst.resolve()
+    if not resolved_src.name.startswith("models--") or resolved_src.name != resolved_dst.name:
+        raise ValueError(f"refusing privileged rsync {resolved_src} -> {resolved_dst}")
+    if resolved_src.name in HOT_FOLDERS:
+        raise ValueError(f"refusing privileged rsync of hot model {resolved_src}")
+    priv = [
+        "docker",
+        "run",
+        "--rm",
+        "--privileged",
+        "--pid=host",
+        "alpine:3.20",
+        "nsenter",
+        "-t",
+        "1",
+        "-m",
+        "rsync",
+        "-a",
+        "--info=progress2",
+        src_s,
+        dst_s,
+    ]
+    print("+", " ".join(priv), flush=True)
+    subprocess.check_call(priv)
+
+
+def _chmod_onexc(func, path, exc):
+    try:
+        os.chmod(path, 0o700)
+        func(path)
+    except OSError as err:
+        raise exc from err
+
+
+def remove_live_repo(src: Path, live_hub: Path) -> None:
+    """Delete one NVMe hub folder. Never touch hot models or paths outside the hub."""
+    resolved = src.resolve()
+    hub_res = live_hub.resolve()
+    if resolved.parent != hub_res:
+        raise ValueError(f"refusing to delete outside live hub: {resolved}")
+    if not resolved.name.startswith("models--"):
+        raise ValueError(f"refusing to delete non-model path: {resolved}")
+    if resolved.name in HOT_FOLDERS:
+        raise ValueError(f"refusing to delete hot model: {resolved}")
+    try:
+        shutil.rmtree(resolved, onexc=_chmod_onexc)
+        return
+    except PermissionError:
+        pass
+    print(f"+ privileged rm -rf {resolved}", flush=True)
+    subprocess.check_call(
+        [
+            "docker",
+            "run",
+            "--rm",
+            "--privileged",
+            "--pid=host",
+            "alpine:3.20",
+            "nsenter",
+            "-t",
+            "1",
+            "-m",
+            "rm",
+            "-rf",
+            "--",
+            str(resolved),
+        ]
+    )
+    if resolved.exists():
+        raise PermissionError(f"privileged rm left {resolved}")
 
 
 def hf_download(cfg: dict[str, str], repo_id: str, dest_home: Path, revision: str | None) -> None:
@@ -179,12 +263,20 @@ def cmd_stash_one(cfg: dict[str, str], repo_id: str, *, delete_src: bool) -> int
     if not src.exists():
         print(f"error: not on NVMe: {src}", file=sys.stderr)
         return 1
-    rsync_tree(src, dst)
+    try:
+        rsync_tree(src, dst)
+    except (OSError, ValueError, subprocess.CalledProcessError) as exc:
+        print(f"error: rsync {repo_id}: {exc}", file=sys.stderr)
+        return 1
     if not is_complete(archive_home(cfg), repo_id) and not any(dst.rglob("*")):
         print(f"error: stash dest empty: {dst}", file=sys.stderr)
         return 1
     if delete_src:
-        shutil.rmtree(src)
+        try:
+            remove_live_repo(src, hub(live_home(cfg)))
+        except (OSError, ValueError) as exc:
+            print(f"error: could not remove NVMe {src}: {exc}", file=sys.stderr)
+            return 1
         print(f"removed NVMe {src}")
     print(f"stashed {repo_id} -> {dst}")
     return 0
@@ -203,7 +295,11 @@ def cmd_stash_cold(cfg: dict[str, str]) -> int:
         if repo in hot_repos(cfg):
             print(f"skip hot {repo}")
             continue
-        if cmd_stash_one(cfg, repo, delete_src=True) != 0:
+        try:
+            if cmd_stash_one(cfg, repo, delete_src=True) != 0:
+                rc = 1
+        except (OSError, ValueError, subprocess.CalledProcessError) as exc:
+            print(f"error: stash {repo}: {exc}", file=sys.stderr)
             rc = 1
     return rc
 
