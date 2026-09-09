@@ -1,23 +1,78 @@
+# Gitea Actions + GitHub Actions.
+# Do not use actions/checkout or actions/setup-node: act_runner clones those
+# from git.skullranch.local on the runner HOST. Mini job 8404 (run 10) died
+# with setup-node "object not found".
+# ubuntu-latest = idle node5-runner (host), mac-mini-runner (Docker), or
+# ryzen-mini-runner (Docker). Do not pin a host or LAN IP.
 name: ci
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
+    types: [opened, reopened, synchronize]
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-recipe-deck-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   ci:
     name: lint typecheck lines tests build
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Node 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
+      - name: Checkout source
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          git init .
+          git config --local --add safe.directory "$PWD"
+          advertised="${GITHUB_SERVER_URL:-}"
+          port="$(printf '%s\n' "$advertised" | sed -nE 's#^https?://[^/:]+:([0-9]+).*#\1#p')"
+          port="${port:-3456}"
+          host="$(printf '%s\n' "$advertised" | sed -nE 's#^https?://([^/:]+).*#\1#p')"
+          bases=()
+          case "$host" in
+            127.0.0.1|localhost|::1|"") ;;
+            *) bases+=("$advertised") ;;
+          esac
+          bases+=("http://git.skullranch.local:${port}")
+          bases+=("http://host.docker.internal:${port}")
+          origin=""
+          seen="|"
+          for base in "${bases[@]}"; do
+            case "$seen" in *"|$base|"*) continue ;; esac
+            seen="${seen}${base}|"
+            if curl -sf -m 3 -o /dev/null "${base}/" 2>/dev/null; then
+              origin="${base}/${{ github.repository }}.git"
+              echo "checkout via ${base}"
+              break
+            fi
+          done
+          if [ -z "${origin}" ]; then
+            echo "FATAL: no reachable git HTTP base (advertised, git.skullranch.local, host.docker.internal)" >&2
+            exit 1
+          fi
+          if [ -n "${GITHUB_TOKEN:-}" ]; then
+            auth_url="${origin/\/\//\/\/oauth2:${GITHUB_TOKEN}@}"
+            git remote add origin "${auth_url}"
+          else
+            git remote add origin "${origin}"
+          fi
+          git fetch --depth=50 origin "${GITHUB_SHA}"
+          git checkout --detach "${GITHUB_SHA}"
+
+      - name: Ensure Node.js
+        run: |
+          set -eu
+          command -v node
+          node -v
+          command -v npm
+          npm -v
+
       - name: Install dependencies
         run: npm ci
       - name: Lint
